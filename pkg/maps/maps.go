@@ -1,0 +1,100 @@
+package maps
+
+import (
+	"fmt"
+
+	"github.com/iancoleman/strcase"
+	"github.com/sirupsen/logrus"
+)
+
+var KeyTransformFunctions = map[string]func(string) string{
+	"ToCamel":          ToCamel,
+	"ToLowerCamel":     ToLowerCamel,
+	"ToKebab":          strcase.ToKebab,
+	"ToScreamingKebab": strcase.ToScreamingKebab,
+	"ToSnake":          strcase.ToSnake,
+	"ToScreamingSnake": strcase.ToScreamingSnake,
+}
+
+func Union(a, b map[interface{}]interface{}) map[interface{}]interface{} {
+	out := Copy(a)
+	for k, v := range b {
+		// If you use map[string]interface{}, ok is always false here.
+		// Because yaml.Unmarshal will give you map[interface{}]interface{}.
+		if v, ok := v.(map[interface{}]interface{}); ok {
+			if bv, ok := out[k]; ok {
+				if bv, ok := bv.(map[interface{}]interface{}); ok {
+					out[k] = Union(bv, v)
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
+
+func Drop(origin, toRemove map[interface{}]interface{}) map[interface{}]interface{} {
+
+	out := Copy(origin)
+	for k, v := range toRemove {
+		if _, ok := out[k]; !ok {
+			// not existing, don't need to care
+			continue
+		}
+		if v, ok := v.(map[interface{}]interface{}); ok {
+			// found v itself a map
+			if outChild, ok := out[k].(map[interface{}]interface{}); ok {
+				// it's a map
+				child := Drop(outChild, v)
+				if child == nil {
+					delete(out, k)
+				} else {
+					out[k] = child
+				}
+			} else {
+				// simple value in original map: just drop it
+				delete(out, k)
+			}
+		} else {
+			// found leaf, drop entry
+			delete(out, k)
+		}
+	}
+	if len(out) < 1 {
+		return nil
+	}
+	return out
+}
+
+func Copy(origin map[interface{}]interface{}) map[interface{}]interface{} {
+	out := make(map[interface{}]interface{}, len(origin))
+	for k, v := range origin {
+		out[k] = v
+	}
+	return out
+}
+
+func TransformKeys(origin map[interface{}]interface{}, transform string) map[interface{}]interface{} {
+	if transform == "" {
+		return origin
+	}
+	if function, ok := KeyTransformFunctions[transform]; ok {
+		return transformKeysInt(origin, function)
+	}
+	logrus.Fatalf("Illegal transform function %s", transform)
+	return nil
+}
+
+func transformKeysInt(origin map[interface{}]interface{}, transform func(string) string) map[interface{}]interface{} {
+	out := make(map[interface{}]interface{}, len(origin))
+	for k, v := range origin {
+		strKey := fmt.Sprintf("%v", k)
+		if vmap, ok := v.(map[interface{}]interface{}); ok {
+			out[transform(strKey)] = transformKeysInt(vmap, transform)
+		} else {
+			out[transform(strKey)] = v
+		}
+	}
+	return out
+}

@@ -1,0 +1,10 @@
+# created by build
+bin/*
+cover.out
+
+# created by manual test runs
+temp/*
+foo.yaml
+
+# IDE specific files
+*.iml
