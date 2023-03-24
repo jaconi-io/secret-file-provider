@@ -1,3 +1,6 @@
+# Image URL to use all building/pushing image targets
+IMG ?= jaconi.io/secret-file-provider:latest
+
 all: test
 
 run:
@@ -16,10 +19,11 @@ fmt: mod
 vet:
 	go vet ./pkg/...
 
-docker: export GOOS = linux
-docker: export GOARCH = amd64
-docker: build
-	docker build -t jaconi.io/secret-file-provider:latest .
+docker-build: build
+	docker build -t ${IMG} .
+
+docker-push:
+	docker push ${IMG}
 
 mod:
 	go mod tidy
