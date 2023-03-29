@@ -40,10 +40,19 @@ func main() {
 			var mgr manager.Manager
 			// connecting to the k8s api server fails if an existing istio sidecar has not yet finished starting up
 			retry(30, func() error {
-				mgr, err = manager.New(cfg, manager.Options{
-					MetricsBindAddress:     ":" + viper.GetString(env.PortMetrics),
-					HealthProbeBindAddress: ":" + viper.GetString(env.PortHealthcheck),
-				})
+				ns := env.GetSingleNamespace()
+				if ns != "" {
+					mgr, err = manager.New(cfg, manager.Options{
+						MetricsBindAddress:     ":" + viper.GetString(env.PortMetrics),
+						HealthProbeBindAddress: ":" + viper.GetString(env.PortHealthcheck),
+						Namespace:              ns,
+					})
+				} else {
+					mgr, err = manager.New(cfg, manager.Options{
+						MetricsBindAddress:     ":" + viper.GetString(env.PortMetrics),
+						HealthProbeBindAddress: ":" + viper.GetString(env.PortHealthcheck),
+					})
+				}
 				return err
 			})
 

@@ -1,6 +1,11 @@
 package env
 
-import "github.com/sirupsen/logrus"
+import (
+	"strings"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+)
 
 const (
 	PortHealthcheck = "port.healthcheck"
@@ -33,3 +38,12 @@ const (
 	DefaultLogJson  = false
 	DefaultLogLevel = logrus.InfoLevel
 )
+
+func GetSingleNamespace() string {
+	ns := viper.GetString(SecretNamespaceSelector)
+	if ns == "" || strings.Contains(ns, ",") {
+		// multiple namespaces selected, return empty string
+		return ""
+	}
+	return ns
+}
