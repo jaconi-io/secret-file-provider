@@ -10,6 +10,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// readSecretContent reads the content of the given secret as key value pairs into a map. Note that
+// this will also apply the secret content selector, so not every key of the original secret might
+// be represented in the resulting map.
 func readSecretContent(secret *corev1.Secret) map[interface{}]interface{} {
 	selectorTemplate := viper.GetString(env.SecretContentSelector)
 	mapContent := make(map[interface{}]interface{})

@@ -12,12 +12,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const testString = `
-foo:
+const testString = `foo:
   bar:
     baz: 42
   oof: 7
 `
+
+const testChecksum = uint32(750484780)
+
+var testData = map[interface{}]interface{}{
+	"foo": map[interface{}]interface{}{
+		"bar": map[interface{}]interface{}{
+			"baz": 42,
+		},
+		"oof": 7,
+	},
+}
 
 func TestName(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
@@ -53,6 +63,17 @@ func TestReadAll(t *testing.T) {
 	f, _ := os.CreateTemp("", "foo")
 	os.WriteFile(f.Name(), []byte(testString), 0644)
 
-	content, _ = ReadAll(log, f.Name())
-	g.Expect(content["foo"]).To(gomega.Equal(map[interface{}]interface{}{"bar": map[interface{}]interface{}{"baz": 42}, "oof": 7}))
+	content, checksum := ReadAll(log, f.Name())
+	g.Expect(content["foo"]).To(gomega.Equal(testData["foo"]))
+	g.Expect(checksum).To(gomega.Equal(uint32(testChecksum)))
+}
+
+func TestWriteAll(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	log := logger.New(&corev1.Secret{})
+	f, _ := os.CreateTemp("", "foo")
+
+	checksum, err := WriteAll(log, f.Name(), testData)
+	g.Expect(err).To(gomega.BeNil())
+	g.Expect(checksum).To(gomega.Equal(uint32(testChecksum)))
 }

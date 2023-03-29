@@ -13,6 +13,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// Call will run an HTTP call against a preconfigured callback endpoint to notify address about changes
+// written for the given secret.
+// Returns an error if HTTP call fails or if it retrieves a non-2xx status response.
 func Call(secret *corev1.Secret) error {
 	log := logger.New(secret)
 	callbackUrl := viper.GetString(env.CallbackUrl)
@@ -76,7 +79,12 @@ func Call(secret *corev1.Secret) error {
 	if resp.StatusCode > 299 {
 		return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
 	}
-	log.Debugf("Successfuly ran callback %s %s", method, callbackUrl)
+	defer resp.Body.Close()
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Debugf("Successfuly ran callback %s %s: '%s'", method, callbackUrl, string(bodyBytes))
 	return nil
 }
 

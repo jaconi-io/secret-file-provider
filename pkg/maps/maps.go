@@ -16,9 +16,11 @@ var KeyTransformFunctions = map[string]func(string) string{
 	"ToScreamingSnake": strcase.ToScreamingSnake,
 }
 
-func Union(a, b map[interface{}]interface{}) map[interface{}]interface{} {
-	out := Copy(a)
-	for k, v := range b {
+// Union will merge two given maps recursive, where the values of the 'right' one will overwrite the ones
+// from the 'left'.
+func Union(left, right map[interface{}]interface{}) map[interface{}]interface{} {
+	out := Copy(left)
+	for k, v := range right {
 		// If you use map[string]interface{}, ok is always false here.
 		// Because yaml.Unmarshal will give you map[interface{}]interface{}.
 		if v, ok := v.(map[interface{}]interface{}); ok {
@@ -34,6 +36,7 @@ func Union(a, b map[interface{}]interface{}) map[interface{}]interface{} {
 	return out
 }
 
+// Drop will remove known entries from a given map recursively.
 func Drop(origin, toRemove map[interface{}]interface{}) map[interface{}]interface{} {
 
 	out := Copy(origin)
@@ -75,6 +78,8 @@ func Copy(origin map[interface{}]interface{}) map[interface{}]interface{} {
 	return out
 }
 
+// TransformKeys will transform all keys in the given map recursively with the given transform function,
+// which must exist in the 'KeyTransformFunctions' map.
 func TransformKeys(origin map[interface{}]interface{}, transform string) map[interface{}]interface{} {
 	if transform == "" {
 		return origin

@@ -17,6 +17,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// Name will return either the filename of a single file to contain the secret information
+// or the directory path, where all sub-files should be stored in.
 func Name(secret *corev1.Secret) string {
 
 	filePattern := viper.GetString(env.SecretFileNamePattern)
@@ -26,7 +28,8 @@ func Name(secret *corev1.Secret) string {
 	return templates.Resolve(filePattern, secret)
 }
 
-// ReadAll current content plus checksum
+// ReadAll returns the secret contents of all existing files for the secret.
+// Return current file contents content, checksum of all content
 func ReadAll(logger *logrus.Entry, filename string) (map[interface{}]interface{}, uint32) {
 	if viper.GetBool(env.SecretFileSingle) {
 		result := make(map[interface{}]interface{})
@@ -66,7 +69,9 @@ func ReadAll(logger *logrus.Entry, filename string) (map[interface{}]interface{}
 	return content, hash(bytes)
 }
 
-// WriteAll - checksum, error
+// WriteAll writes all content either into a single file with the given identifier or into multiple
+// ones under a directory with the given name.
+// Returns checksum of all written file content, error
 func WriteAll(logger *logrus.Entry, filename string, content map[interface{}]interface{}) (uint32, error) {
 
 	if viper.GetBool(env.SecretFileSingle) {
@@ -123,9 +128,9 @@ func hashString(s string) uint32 {
 
 func hashStringArray(arr []string) uint32 {
 	sort.Strings(arr)
-	var value uint32 = 0
+	full := ""
 	for _, s := range arr {
-		value += hashString(s)
+		full += s
 	}
-	return value
+	return hashString(full)
 }

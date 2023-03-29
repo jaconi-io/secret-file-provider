@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+// Resolve resolves a given go template pattern with the content of the given secret.
 func Resolve(pattern string, secret *corev1.Secret) string {
 
 	if !strings.Contains(pattern, "{{") {

@@ -27,6 +27,7 @@ func RegisterControllers(mgr manager.Manager) {
 	}
 }
 
+// createFilter creates secret read filters based on either name-/namespace- or label-selector.
 func createFilter() predicate.Predicate {
 	labelSelector := viper.GetString(env.SecretLabelSelector)
 	if len(labelSelector) > 0 {
@@ -40,6 +41,8 @@ func createFilter() predicate.Predicate {
 	return nil
 }
 
+// createNameSelector creates a predicate to check for dedicated name-pattern/namespace combinations
+// to reconcile on.
 func createNameSelector(regexString string) predicate.Predicate {
 
 	namespaces := make(map[string]struct{})
@@ -74,6 +77,7 @@ func namespaceMatch(namespaces map[string]struct{}, namespace string) bool {
 	return false
 }
 
+// createSecretSelectFilter creates a predicate to check K8s label selector matches for reconciles.
 func createSecretSelectFilter(selectFilter string) predicate.Predicate {
 
 	// TODO namespace!
