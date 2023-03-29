@@ -66,6 +66,7 @@ func Call(secret *corev1.Secret) error {
 		}
 	default:
 		{
+			// not supported, fail fast
 			log.Fatalf("Unsupported HTTP method %s for callback", method)
 		}
 	}
@@ -77,12 +78,13 @@ func Call(secret *corev1.Secret) error {
 		log.Panicf("HTTP method %s not supported by server", method)
 	}
 	if resp.StatusCode > 299 {
+		// might be a temporary issue, do reconcile
 		return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.WithError(err).Fatalf("Failed to call %s %s", method, callbackUrl)
 	}
 	log.Debugf("Successfuly ran callback %s %s: '%s'", method, callbackUrl, string(bodyBytes))
 	return nil

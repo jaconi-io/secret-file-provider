@@ -23,8 +23,8 @@ import (
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use:   "secret-injector",
-		Short: "Secret Injector",
+		Use:   "secret-file-provider",
+		Short: "Secret File Provider",
 		Long:  "Operator like sidecar to copy K8s secret content into a predefined filesystem location.",
 		Run: func(cmd *cobra.Command, args []string) {
 
@@ -38,10 +38,12 @@ func main() {
 			}
 
 			var mgr manager.Manager
-			// connecting to the k8s api server fails if an existing istio sidecar has not yet finished starting up
+			// connecting to the k8s api server fails if an e.g. istio sidecar has not yet finished starting up
 			retry(30, func() error {
 				ns := env.GetSingleNamespace()
 				if ns != "" {
+					// if only one NS is defined, we attach that to manager, so that
+					// we are able to use K8s roles instead of clusterroles
 					mgr, err = manager.New(cfg, manager.Options{
 						MetricsBindAddress:     ":" + viper.GetString(env.PortMetrics),
 						HealthProbeBindAddress: ":" + viper.GetString(env.PortHealthcheck),
@@ -65,11 +67,12 @@ func main() {
 			_ = mgr.AddHealthzCheck("ping", healthz.Ping)
 			_ = mgr.AddReadyzCheck("ping", healthz.Ping)
 
+			// register controller implementations
 			setup.RegisterControllers(mgr)
 
-			logrus.Info("Starting the Cmd.")
+			logrus.Info("Starting the Service")
 
-			// Start the Cmd
+			// Start the Service
 			if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
 				logrus.WithError(err).Fatal("Manager exited non-zero")
 			}

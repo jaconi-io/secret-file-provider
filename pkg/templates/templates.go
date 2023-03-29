@@ -17,16 +17,17 @@ func Resolve(pattern string, secret *corev1.Secret) string {
 		return pattern
 	}
 
-	// Handle special '.Data' case for secrets, where content is stored in binary format:
+	// Handle special '.Data' case for secrets, where content is stored in binary format
 	patternToApply := pattern
 	if strings.Contains(pattern, ".Data") {
-		// move to stringsecrets
+		// copy binary .Data secrets to .StringData secrets
 		if secret.StringData == nil {
 			secret.StringData = map[string]string{}
 		}
 		for k, v := range secret.Data {
 			secret.StringData[k] = string(v)
 		}
+		// replace accessor in pattern
 		patternToApply = strings.Replace(patternToApply, ".Data", ".StringData", -1)
 	}
 

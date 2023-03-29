@@ -61,16 +61,18 @@ SECRET_FILE_PROPERTY_PATTERN="spring.oauth.clients"
 SECRET_KEY_TRANSFORMATION="ToSnake"
 ```
 
-Example Result (/var/config/secret-auth-client-acme.yaml)
+Example Result
 ``` 
+$ cat /var/config/secret-auth-client-acme.yaml
 spring:
   oauth:
     clients:
       client_id: "123-456"
       client_secret: "mySuperSecretSecret"
 ``` 
-Example Result (/var/config/secret-auth-client-company.yaml)
+Example Result
 ``` 
+$ cat /var/config/secret-auth-client-company.yaml
 spring:
   oauth:
     clients:
@@ -88,7 +90,7 @@ SECRET_FILE_SINGLE="true
 SECRET_KEY_TRANSFORMATION="ToLowerCamel"
 ```
 
-Example Results (/var/config/secret-auth-client-acme.yaml)
+Example Results
 ``` 
 $ cat /var/config/acme/clientId
 123-456
@@ -99,3 +101,30 @@ $ cat /var/config/company/clientId
 $ cat /var/config/company/clientSecret
 ImSecure...believeIt!
 ``` 
+
+## Local Developmet
+
+**Preconditions**
+* Installed and set up [Golang 1.19](https://go.dev/doc/install) or newer
+* Installed [make](https://www.tutorialspoint.com/unix_commands/make.htm)
+
+To build the tool and run all tests, just use 
+```
+make all
+```
+
+For building a docker container, run
+```
+make docker-build
+``` 
+which will create by default a *jaconi.io/secret-file-provider:latest* image.
+
+## Contributing
+
+**TODO** 
+
+## Open Issues
+
+* Deletion case 
+  * secret deletion might be missed, if secret gets deleted completely between two reconciles
+  * single file deletion currently not supported

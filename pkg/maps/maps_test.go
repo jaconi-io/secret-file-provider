@@ -115,7 +115,7 @@ func TestUnion(t *testing.T) {
 func TestToCamel(t *testing.T) {
 	g := NewGomegaWithT(t)
 
-	g.Expect(ToCamel("AhH_OHH")).To(Equal("AhhOhh"))
-	g.Expect(ToCamel("AHH-OHH")).To(Equal("AhhOhh"))
-	g.Expect(ToCamel("AHH-ohh")).To(Equal("AhhOhh"))
+	g.Expect(ToCamel("UhH_OHH")).To(Equal("UhhOhh"))
+	g.Expect(ToCamel("UHH-OHH")).To(Equal("UhhOhh"))
+	g.Expect(ToCamel("UHH-ohh")).To(Equal("UhhOhh"))
 }

@@ -36,24 +36,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 	if secret.DeletionTimestamp != nil {
 		// TODO this might be problematic and can only be overcome with finalizers
+		//   as the secret might already be gone on next reconcilation (in case of
+		//   reconcile error or service restart)
 		return reconcile.Result{}, change(secret, remove)
 	}
 
 	return reconcile.Result{}, change(secret, add)
 }
 
-func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) (bool, error)) error {
+// change will call the given change function on the secret and call a probably
+// existing callback endpoint
+// Returns an error if anything went wrong
+func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) error) error {
 	log := logger.New(secret)
-	changed, err := changeFunc(secret)
+	err := changeFunc(secret)
 	if err != nil {
 		return err
 	}
 	if err != nil {
 		log.WithError(err).Error("Failed to update content")
 		return err
-	}
-	if !changed {
-		return nil
 	}
 	err = callback.Call(secret)
 	if err != nil {
@@ -63,13 +65,15 @@ func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) (bool, error)
 	return nil
 }
 
-func remove(secret *corev1.Secret) (bool, error) {
+// remove will remove the files or file content, belonging to the given secret
+// Returns potential error
+func remove(secret *corev1.Secret) error {
 	log := logger.New(secret)
 	log.Debug("Removing content for secret")
 
 	// 1. read existing file content
 	f := file.Name(secret)
-	existingContent, rChecksum := file.ReadAll(log, f)
+	existingContent := file.ReadAll(log, f)
 
 	// 2. read content from secret
 	newContent := readSecretContent(secret)
@@ -81,18 +85,18 @@ func remove(secret *corev1.Secret) (bool, error) {
 	resultingMap := maps.Drop(existingContent, convertedKeyMap)
 
 	// 5. write to file
-	wChecksum, err := file.WriteAll(log, f, resultingMap)
-
-	return wChecksum != rChecksum, err
+	return file.WriteAll(log, f, resultingMap)
 }
 
-func add(secret *corev1.Secret) (bool, error) {
+// add will create the files or file content, belonging to the given secret
+// Returns potential error
+func add(secret *corev1.Secret) error {
 	log := logger.New(secret)
 	log.Debug("Adding content for secret")
 
 	// 1. read existing file content
 	f := file.Name(secret)
-	existingContent, rChecksum := file.ReadAll(log, f)
+	existingContent := file.ReadAll(log, f)
 
 	// 2. read content from secret
 	newContent := readSecretContent(secret)
@@ -104,7 +108,5 @@ func add(secret *corev1.Secret) (bool, error) {
 	resultingMap := maps.Union(existingContent, convertedKeyMap)
 
 	// 5. write to file
-	wChecksum, err := file.WriteAll(log, f, resultingMap)
-
-	return wChecksum != rChecksum, err
+	return file.WriteAll(log, f, resultingMap)
 }
