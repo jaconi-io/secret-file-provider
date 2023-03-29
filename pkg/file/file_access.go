@@ -31,7 +31,10 @@ func ReadAll(logger *logrus.Entry, filename string) map[interface{}]interface{} 
 		if os.IsNotExist(err) {
 			return result
 		}
-		logger.WithError(err).Fatalf("Failed to read content of %s", filename)
+		if err != nil {
+			logger.WithError(err).Errorf("Failed to read content of %s", filename)
+			return result
+		}
 		for _, file := range files {
 			fullpath := filepath.Join(filename, file.Name())
 			bytes, err := os.ReadFile(fullpath)
@@ -51,7 +54,7 @@ func ReadAll(logger *logrus.Entry, filename string) map[interface{}]interface{} 
 	content := make(map[interface{}]interface{})
 	err = yaml.Unmarshal(bytes, content)
 	if err != nil {
-		logger.WithError(err).Errorf("Failed to read %s", string(bytes))
+		logger.WithError(err).Errorf("Failed to map content of %s:  %s", filename, string(bytes))
 	}
 	return content
 }
