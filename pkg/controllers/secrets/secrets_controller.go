@@ -42,15 +42,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	return reconcile.Result{}, change(secret, add)
 }
 
-func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) error) error {
+func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) (bool, error)) error {
 	log := logger.New(secret)
-	err := changeFunc(secret)
+	changed, err := changeFunc(secret)
 	if err != nil {
 		return err
 	}
 	if err != nil {
 		log.WithError(err).Error("Failed to update content")
 		return err
+	}
+	if !changed {
+		return nil
 	}
 	err = callback.Call(secret)
 	if err != nil {
@@ -60,13 +63,13 @@ func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) error) error 
 	return nil
 }
 
-func remove(secret *corev1.Secret) error {
+func remove(secret *corev1.Secret) (bool, error) {
 	log := logger.New(secret)
 	log.Debug("Removing content for secret")
 
 	// 1. read existing file content
 	f := file.Name(secret)
-	existingContent := file.ReadAll(log, f)
+	existingContent, rChecksum := file.ReadAll(log, f)
 
 	// 2. read content from secret
 	newContent := readSecretContent(secret)
@@ -78,16 +81,18 @@ func remove(secret *corev1.Secret) error {
 	resultingMap := maps.Drop(existingContent, convertedKeyMap)
 
 	// 5. write to file
-	return file.WriteAll(log, f, resultingMap)
+	wChecksum, err := file.WriteAll(log, f, resultingMap)
+
+	return wChecksum != rChecksum, err
 }
 
-func add(secret *corev1.Secret) error {
+func add(secret *corev1.Secret) (bool, error) {
 	log := logger.New(secret)
 	log.Debug("Adding content for secret")
 
 	// 1. read existing file content
 	f := file.Name(secret)
-	existingContent := file.ReadAll(log, f)
+	existingContent, rChecksum := file.ReadAll(log, f)
 
 	// 2. read content from secret
 	newContent := readSecretContent(secret)
@@ -99,5 +104,7 @@ func add(secret *corev1.Secret) error {
 	resultingMap := maps.Union(existingContent, convertedKeyMap)
 
 	// 5. write to file
-	return file.WriteAll(log, f, resultingMap)
+	wChecksum, err := file.WriteAll(log, f, resultingMap)
+
+	return wChecksum != rChecksum, err
 }

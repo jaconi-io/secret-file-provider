@@ -47,12 +47,12 @@ func TestReadAll(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	log := logger.New(&corev1.Secret{})
 
-	content := ReadAll(log, "/dowhap/dododowhap")
+	content, _ := ReadAll(log, "/dowhap/dododowhap")
 	g.Expect(content).To(gomega.BeEmpty())
 
 	f, _ := os.CreateTemp("", "foo")
 	os.WriteFile(f.Name(), []byte(testString), 0644)
 
-	content = ReadAll(log, f.Name())
+	content, _ = ReadAll(log, f.Name())
 	g.Expect(content["foo"]).To(gomega.Equal(map[interface{}]interface{}{"bar": map[interface{}]interface{}{"baz": 42}, "oof": 7}))
 }

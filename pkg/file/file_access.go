@@ -2,9 +2,11 @@ package file
 
 import (
 	"fmt"
+	"hash/fnv"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/logger"
@@ -24,17 +26,20 @@ func Name(secret *corev1.Secret) string {
 	return templates.Resolve(filePattern, secret)
 }
 
-func ReadAll(logger *logrus.Entry, filename string) map[interface{}]interface{} {
+// ReadAll current content plus checksum
+func ReadAll(logger *logrus.Entry, filename string) (map[interface{}]interface{}, uint32) {
 	if viper.GetBool(env.SecretFileSingle) {
 		result := make(map[interface{}]interface{})
 		files, err := ioutil.ReadDir(filename)
 		if os.IsNotExist(err) {
-			return result
+			return result, 0
 		}
 		if err != nil {
 			logger.WithError(err).Errorf("Failed to read content of %s", filename)
-			return result
+			return result, 0
 		}
+		readContent := make([]string, len(files))
+		count := 0
 		for _, file := range files {
 			fullpath := filepath.Join(filename, file.Name())
 			bytes, err := os.ReadFile(fullpath)
@@ -43,8 +48,10 @@ func ReadAll(logger *logrus.Entry, filename string) map[interface{}]interface{} 
 				bytes = []byte{}
 			}
 			result[file.Name()] = string(bytes)
+			readContent[count] = string(bytes)
+			count++
 		}
-		return result
+		return result, hashStringArray(readContent)
 	}
 	bytes, err := os.ReadFile(filename)
 	if err != nil {
@@ -56,26 +63,32 @@ func ReadAll(logger *logrus.Entry, filename string) map[interface{}]interface{} 
 	if err != nil {
 		logger.WithError(err).Errorf("Failed to map content of %s:  %s", filename, string(bytes))
 	}
-	return content
+	return content, hash(bytes)
 }
 
-func WriteAll(logger *logrus.Entry, filename string, content map[interface{}]interface{}) error {
+// WriteAll - checksum, error
+func WriteAll(logger *logrus.Entry, filename string, content map[interface{}]interface{}) (uint32, error) {
 
 	if viper.GetBool(env.SecretFileSingle) {
+		// TODO handle delete file case!
 		if err := os.MkdirAll(filename, os.ModePerm); err != nil {
 			logger.WithError(err).Fatalf("Failed to create parent directories for %s", filename)
 		}
+		writtenContent := make([]string, len(content))
+		count := 0
 		for k, v := range content {
 			file := fmt.Sprintf("%v", k)
 			content := fmt.Sprintf("%v", v)
 			err := os.WriteFile(filepath.Join(filename, file), []byte(content), 0644)
 			if err != nil {
 				logger.WithError(err).Errorf("Failed to write secret to %s", file)
-				return err
+				return 0, err
 			}
+			writtenContent[count] = content
+			count++
 			logger.Infof("Successfuly written %s", file)
 		}
-		return nil
+		return hashStringArray(writtenContent), nil
 	}
 
 	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
@@ -86,14 +99,33 @@ func WriteAll(logger *logrus.Entry, filename string, content map[interface{}]int
 	if err != nil {
 		logger.WithError(err).Errorf("Failed to parse secret content for writing into %s", filename)
 		// do not retry, because secret content is just invalid
-		return nil
+		return 0, nil
 	}
 
 	err = os.WriteFile(filename, yamlData, 0644)
 	if err != nil {
 		logger.WithError(err).Errorf("Failed to write secret to %s", filename)
-	} else {
-		logger.Infof("Successfuly written %s", filename)
+		return 0, err
 	}
-	return err
+	logger.Infof("Successfuly written %s", filename)
+	return hash(yamlData), nil
+}
+
+func hash(bytes []byte) uint32 {
+	h := fnv.New32a()
+	h.Write(bytes)
+	return h.Sum32()
+}
+
+func hashString(s string) uint32 {
+	return hash([]byte(s))
+}
+
+func hashStringArray(arr []string) uint32 {
+	sort.Strings(arr)
+	var value uint32 = 0
+	for _, s := range arr {
+		value += hashString(s)
+	}
+	return value
 }
