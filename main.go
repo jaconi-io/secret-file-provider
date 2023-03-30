@@ -79,7 +79,7 @@ func main() {
 			logrus.Info("Retrieved SIGTERM")
 		},
 	}
-	setup.InitFlags(rootCmd)
+	env.Bootstrap(rootCmd)
 	rootCmd.Execute()
 }
 

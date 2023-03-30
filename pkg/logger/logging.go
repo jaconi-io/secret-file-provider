@@ -5,6 +5,7 @@ import (
 
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -29,4 +30,8 @@ func InitLogging() {
 	}
 
 	logrus.SetOutput(os.Stdout)
+}
+
+func init() {
+	cobra.OnInitialize(InitLogging)
 }
