@@ -1,13 +1,13 @@
 name: publish
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types:
+      - published
 
 jobs:
-  register:
-    name: Package, Publish, and Register
+  publish:
+    name: Publish Docker Image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -24,4 +24,4 @@ jobs:
       - id: build-and-push
         run: make docker-build docker-push
         env:
-          IMG: ghcr.io/${{ github.repository }}:latest
+          IMG: ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name }}
