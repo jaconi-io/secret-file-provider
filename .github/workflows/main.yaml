@@ -5,13 +5,40 @@ on:
     branches:
       - main
   pull_request:
-    - opened
-    - reopened
+    branches:
+      - main
 
 jobs:
-  semantic:
+  lint:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        if: github.event_name != 'pull_request'
+        with:
+          # We need ${{github.event.pull_request.commits}} + 1 commits.
+          fetch-depth: 0
+          # Use a different token so subsequent workflows are executed.
+          # See https://github.community/t/action-does-not-trigger-another-on-push-tag-action/17148
+          token: ${{ secrets.SEMANTIC_RELEASE_GITHUB_TOKEN }}
 
+      - uses: actions/checkout@v3
+        if: github.event_name == 'pull_request'
+        with:
+          # We need ${{github.event.pull_request.commits}} + 1 commits.
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Lint commit message(s)
+        run: |
+          yarn add @commitlint/cli
+          yarn add @commitlint/config-conventional
+          yarn run commitlint --from HEAD~${{ github.event.pull_request.commits }} --to HEAD
+  test:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -22,3 +49,25 @@ jobs:
 
       - name: Run tests
         run: make test
+  release:
+    if: github.event_name == 'push'
+    needs:
+      - lint
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          # Use a different token so subsequent workflows are executed.
+          # See https://github.community/t/action-does-not-trigger-another-on-push-tag-action/17148
+          token: ${{ secrets.SEMANTIC_RELEASE_GITHUB_TOKEN }}
+
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v2
+        with:
+          extra_plugins: |
+            @semantic-release/exec
+        env:
+          GITHUB_TOKEN: ${{ secrets.SEMANTIC_RELEASE_GITHUB_TOKEN }}

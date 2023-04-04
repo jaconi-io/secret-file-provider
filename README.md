@@ -1,5 +1,7 @@
 # Secret File Provider
 
+[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+
 Sidecar implementation which is used to copy K8s secret content into local filesystem.
 
 ## Configuration
