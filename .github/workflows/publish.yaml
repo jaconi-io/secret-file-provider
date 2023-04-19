@@ -16,7 +16,7 @@ jobs:
           go-version: "1.19"
       - run: go version
       - id: login
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
