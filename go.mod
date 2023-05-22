@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/iancoleman/strcase v0.2.0
 	github.com/onsi/gomega v1.27.6
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.2
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.15.0
 	gopkg.in/yaml.v2 v2.4.0
