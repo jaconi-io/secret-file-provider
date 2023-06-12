@@ -1,7 +1,6 @@
 package env
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -21,40 +20,40 @@ func Bootstrap(rootCmd *cobra.Command) {
 	rootCmd.Flags().Bool(LogJson, DefaultLogJson, "output logs in JSON format")
 	viper.BindPFlag(LogJson, rootCmd.Flags().Lookup(LogJson))
 
-	rootCmd.Flags().String(LogLevel, DefaultLogLevel.String(), fmt.Sprintf("log level"))
+	rootCmd.Flags().String(LogLevel, DefaultLogLevel.String(), "log level")
 	viper.BindPFlag(LogLevel, rootCmd.Flags().Lookup(LogLevel))
 
-	rootCmd.Flags().String(SecretLabelSelector, "", fmt.Sprintf("secret labels to consider"))
+	rootCmd.Flags().String(SecretLabelSelector, "", "secret labels to consider")
 	viper.BindPFlag(SecretLabelSelector, rootCmd.Flags().Lookup(SecretLabelSelector))
 
-	rootCmd.Flags().String(SecretNameSelector, "", fmt.Sprintf("secret name pattern to consider"))
+	rootCmd.Flags().String(SecretNameSelector, "", "secret name pattern to consider")
 	viper.BindPFlag(SecretNameSelector, rootCmd.Flags().Lookup(SecretNameSelector))
 
-	rootCmd.Flags().String(SecretContentSelector, "", fmt.Sprintf("secret content path to copy"))
+	rootCmd.Flags().String(SecretContentSelector, "", "secret content path to copy")
 	viper.BindPFlag(SecretContentSelector, rootCmd.Flags().Lookup(SecretContentSelector))
 
-	rootCmd.Flags().String(SecretKeyTransformation, "", fmt.Sprintf("transformation function for all secret keys"))
+	rootCmd.Flags().String(SecretKeyTransformation, "", "transformation function for all secret keys")
 	viper.BindPFlag(SecretKeyTransformation, rootCmd.Flags().Lookup(SecretKeyTransformation))
 
-	rootCmd.Flags().Bool(SecretFileSingle, false, fmt.Sprintf("set to 'true' if each secret key should get it's own file"))
+	rootCmd.Flags().Bool(SecretFileSingle, false, "set to 'true' if each secret key should get it's own file")
 	viper.BindPFlag(SecretFileSingle, rootCmd.Flags().Lookup(SecretFileSingle))
 
-	rootCmd.Flags().String(SecretFileNamePattern, "", fmt.Sprintf("target filename pattern"))
+	rootCmd.Flags().String(SecretFileNamePattern, "", "target filename pattern")
 	viper.BindPFlag(SecretFileNamePattern, rootCmd.Flags().Lookup(SecretFileNamePattern))
 
-	rootCmd.Flags().String(SecretFilePropertyPattern, "", fmt.Sprintf("base property path in target file"))
+	rootCmd.Flags().String(SecretFilePropertyPattern, "", "base property path in target file")
 	viper.BindPFlag(SecretFilePropertyPattern, rootCmd.Flags().Lookup(SecretFilePropertyPattern))
 
-	rootCmd.Flags().String(CallbackUrl, "", fmt.Sprintf("url to call with GET request for successful file updates"))
+	rootCmd.Flags().String(CallbackUrl, "", "url to call with GET request for successful file updates")
 	viper.BindPFlag(CallbackUrl, rootCmd.Flags().Lookup(CallbackUrl))
 
-	rootCmd.Flags().String(CallbackMethod, "GET", fmt.Sprintf("method for callback URL, sent on file updates"))
+	rootCmd.Flags().String(CallbackMethod, "GET", "method for callback URL, sent on file updates")
 	viper.BindPFlag(CallbackMethod, rootCmd.Flags().Lookup(CallbackMethod))
 
-	rootCmd.Flags().String(CallbackBody, "", fmt.Sprintf("body sent with callback on file updates"))
+	rootCmd.Flags().String(CallbackBody, "", "body sent with callback on file updates")
 	viper.BindPFlag(CallbackBody, rootCmd.Flags().Lookup(CallbackBody))
 
-	rootCmd.Flags().String(CallbackContenttype, "application/json", fmt.Sprintf("content-type of callback request body"))
+	rootCmd.Flags().String(CallbackContenttype, "application/json", "content-type of callback request body")
 	viper.BindPFlag(CallbackContenttype, rootCmd.Flags().Lookup(CallbackContenttype))
 }
 

@@ -1,20 +1,26 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	_ "net/http/pprof"
+	"regexp"
 	"runtime"
 	"time"
 
+	"k8s.io/apimachinery/pkg/labels"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/jaconi-io/secret-file-provider/pkg/countingfinalizer"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/setup"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -77,6 +83,9 @@ func main() {
 				logrus.WithError(err).Fatal("Manager exited non-zero")
 			}
 			logrus.Info("Retrieved SIGTERM")
+
+			cleanup(mgr)
+			logrus.Info("cleanup completed")
 		},
 	}
 	env.Bootstrap(rootCmd)
@@ -94,6 +103,60 @@ func retry(maxAttempts int, action func() error) {
 		} else {
 			// give up
 			logrus.WithError(err).Fatal("give up")
+		}
+	}
+}
+
+func cleanup(mgr manager.Manager) {
+	ctx := context.Background()
+	listOptions := &client.ListOptions{}
+
+	if viper.GetString(env.SecretLabelSelector) != "" {
+		labelSelector, err := labels.Parse(viper.GetString(env.SecretLabelSelector))
+		if err != nil {
+			logrus.WithError(err).Error("cleanup failed due to invalid secret label selector")
+			return
+		}
+
+		listOptions.LabelSelector = labelSelector
+	}
+
+	ns := env.GetSingleNamespace()
+	if ns != "" {
+		listOptions.Namespace = ns
+	}
+
+	secrets := &corev1.SecretList{}
+	if err := mgr.GetClient().List(context.Background(), secrets, listOptions); err != nil {
+		logrus.Error("cleanup failed", err)
+		return
+	}
+
+	// Filter for name pattern, if configured.
+	var accept func(corev1.Secret) bool
+	nameSelector := viper.GetString(env.SecretNameSelector)
+	if nameSelector != "" {
+		regex := regexp.MustCompilePOSIX(nameSelector)
+		accept = func(secret corev1.Secret) bool {
+			return regex.MatchString(secret.Name)
+		}
+	} else {
+		accept = func(corev1.Secret) bool {
+			return true
+		}
+	}
+
+	for _, secret := range secrets.Items {
+		if !accept(secret) {
+			continue
+		}
+
+		// Decrement the finalizer, for each secret.
+		patch := client.StrategicMergeFrom(secret.DeepCopy())
+		countingfinalizer.Decrement(&secret, env.FinalizerPrefix)
+		if err := mgr.GetClient().Patch(ctx, &secret, patch); err != nil {
+			logrus.Error("cleanup failed for secret ", err)
+			continue
 		}
 	}
 }
