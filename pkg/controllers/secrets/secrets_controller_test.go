@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -36,7 +37,7 @@ func TestReconcile(t *testing.T) {
 
 	// Create file and add content
 	secret1 := testSecret("acme")
-	reconciler := &Reconciler{Client: fake.NewFakeClient(secret1)}
+	reconciler := &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret1).Build()}
 
 	_, err := reconciler.Reconcile(context.TODO(), req)
 	g.Expect(err).To(BeNil())
@@ -50,7 +51,7 @@ func TestReconcile(t *testing.T) {
 	// Append content to file
 	viper.Set(env.SecretContentSelector, "{{.Data.key2}}")
 	secret2 := testSecret("company")
-	reconciler = &Reconciler{Client: fake.NewFakeClient(secret2)}
+	reconciler = &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret2).Build()}
 
 	_, err = reconciler.Reconcile(context.TODO(), req)
 	g.Expect(err).To(BeNil())
@@ -63,8 +64,9 @@ func TestReconcile(t *testing.T) {
 	g.Expect(result["company"]).To(Equal("value2"))
 
 	// Remove property from file
+	secret1.ObjectMeta.Finalizers = []string{env.FinalizerPrefix + "1"}
 	secret1.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-	reconciler = &Reconciler{Client: fake.NewFakeClient(secret1)}
+	reconciler = &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret1).Build()}
 	_, err = reconciler.Reconcile(context.TODO(), req)
 	g.Expect(err).To(BeNil())
 
@@ -78,7 +80,7 @@ func TestReconcile(t *testing.T) {
 	// Change content selector to push all
 	viper.Set(env.SecretContentSelector, "")
 	secret3 := testSecret("uni")
-	reconciler = &Reconciler{Client: fake.NewFakeClient(secret3)}
+	reconciler = &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret3).Build()}
 
 	_, err = reconciler.Reconcile(context.TODO(), req)
 	g.Expect(err).To(BeNil())
@@ -87,6 +89,55 @@ func TestReconcile(t *testing.T) {
 	result = readTestFile()
 
 	g.Expect(result["uni"]).To(Equal(map[interface{}]interface{}{"key1": "value1", "key2": "value2"}))
+}
+
+func TestReconcileAddFinalizer(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	defer viper.Reset()
+	defer os.Remove("foo")
+	viper.Set(env.SecretFileNamePattern, "foo")
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      req.Name,
+			Namespace: req.Namespace,
+		},
+	}
+	reconciler := &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret).Build()}
+
+	_, err := reconciler.Reconcile(context.TODO(), req)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = reconciler.Client.Get(context.Background(), req.NamespacedName, secret)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(secret.Finalizers).To(ContainElement(env.FinalizerPrefix + "1"))
+}
+
+func TestReconcileRemoveFinalizer(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	defer viper.Reset()
+	defer os.Remove("foo")
+	viper.Set(env.SecretFileNamePattern, "foo")
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              req.Name,
+			Namespace:         req.Namespace,
+			Finalizers:        []string{env.FinalizerPrefix + "1"},
+			DeletionTimestamp: &metav1.Time{Time: time.Now()},
+		},
+	}
+	reconciler := &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret).Build()}
+
+	_, err := reconciler.Reconcile(context.TODO(), req)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	err = reconciler.Client.Get(context.Background(), req.NamespacedName, secret)
+	g.Expect(err).To(HaveOccurred())
+	g.Expect(errors.IsNotFound(err)).To(BeTrue())
 }
 
 func readTestFile() map[interface{}]interface{} {

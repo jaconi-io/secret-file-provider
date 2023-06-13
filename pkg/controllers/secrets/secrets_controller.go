@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/callback"
+	"github.com/jaconi-io/secret-file-provider/pkg/countingfinalizer"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/file"
 	"github.com/jaconi-io/secret-file-provider/pkg/logger"
@@ -17,7 +18,7 @@ import (
 )
 
 type Reconciler struct {
-	Client client.Client
+	client.Client
 }
 
 var _ reconcile.Reconciler = &Reconciler{}
@@ -35,10 +36,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	if secret.DeletionTimestamp != nil {
-		// TODO this might be problematic and can only be overcome with finalizers
-		//   as the secret might already be gone on next reconcilation (in case of
-		//   reconcile error or service restart)
-		return reconcile.Result{}, change(secret, remove)
+		err := change(secret, remove)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+
+		// Decrement the finalizer, once the cleanup completed successfully.
+		patch := client.StrategicMergeFrom(secret.DeepCopy())
+		countingfinalizer.Decrement(secret, env.FinalizerPrefix)
+		if err := r.Patch(ctx, secret, patch); err != nil {
+			return reconcile.Result{}, err
+		}
+
+		return reconcile.Result{}, nil
+	}
+
+	// Increment the finalizer to ensure proper cleanup.
+	patch := client.StrategicMergeFrom(secret.DeepCopy())
+	countingfinalizer.Increment(secret, env.FinalizerPrefix)
+	if err := r.Patch(ctx, secret, patch); err != nil {
+		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, change(secret, add)
