@@ -3,7 +3,7 @@ module github.com/jaconi-io/secret-file-provider
 go 1.19
 
 require (
-	github.com/iancoleman/strcase v0.2.0
+	github.com/iancoleman/strcase v0.3.0
 	github.com/onsi/gomega v1.27.10
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.7.0
