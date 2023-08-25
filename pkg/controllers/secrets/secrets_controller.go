@@ -2,9 +2,9 @@ package secrets
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/callback"
-	"github.com/jaconi-io/secret-file-provider/pkg/countingfinalizer"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/file"
 	"github.com/jaconi-io/secret-file-provider/pkg/logger"
@@ -14,6 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
@@ -41,21 +42,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			return reconcile.Result{}, err
 		}
 
-		// Decrement the finalizer, once the cleanup completed successfully.
-		patch := client.StrategicMergeFrom(secret.DeepCopy())
-		countingfinalizer.Decrement(secret, env.FinalizerPrefix)
-		if err := r.Patch(ctx, secret, patch); err != nil {
-			return reconcile.Result{}, err
+		// Remove the finalizer, once the cleanup completed successfully.
+		if _, err := controllerutil.CreateOrPatch(ctx, r.Client, secret, func() error {
+			controllerutil.RemoveFinalizer(secret, env.FinalizerPrefix+viper.GetString(env.PodName))
+			return nil
+		}); err != nil {
+			return reconcile.Result{}, fmt.Errorf("removing finalizer failed: %w", err)
 		}
 
 		return reconcile.Result{}, nil
 	}
 
-	// Increment the finalizer to ensure proper cleanup.
-	patch := client.StrategicMergeFrom(secret.DeepCopy())
-	countingfinalizer.Increment(secret, env.FinalizerPrefix)
-	if err := r.Patch(ctx, secret, patch); err != nil {
-		return reconcile.Result{}, err
+	// Add a finalizer to ensure proper cleanup.
+	if _, err := controllerutil.CreateOrPatch(ctx, r.Client, secret, func() error {
+		controllerutil.AddFinalizer(secret, env.FinalizerPrefix+viper.GetString(env.PodName))
+		return nil
+	}); err != nil {
+		return reconcile.Result{}, fmt.Errorf("adding finalizer failed: %w", err)
 	}
 
 	return reconcile.Result{}, change(secret, add)

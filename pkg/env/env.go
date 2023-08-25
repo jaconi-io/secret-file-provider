@@ -5,6 +5,8 @@ import (
 )
 
 const (
+	PodName = "pod.name"
+
 	PortHealthcheck = "port.healthcheck"
 	PortMetrics     = "port.metrics"
 	PortDebug       = "port.debug"
