@@ -13,7 +13,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/bombsimon/logrusr/v4"
-	"github.com/jaconi-io/secret-file-provider/pkg/countingfinalizer"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/setup"
 	"github.com/sirupsen/logrus"
@@ -23,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -149,15 +149,16 @@ func cleanup(mgr manager.Manager) {
 		}
 	}
 
+	// Remove the finalizer from each secret.
 	for _, secret := range secrets.Items {
 		if !accept(secret) {
 			continue
 		}
 
-		// Decrement the finalizer, for each secret.
-		patch := client.StrategicMergeFrom(secret.DeepCopy())
-		countingfinalizer.Decrement(&secret, env.FinalizerPrefix)
-		if err := mgr.GetClient().Patch(ctx, &secret, patch); err != nil {
+		if _, err := controllerutil.CreateOrPatch(ctx, mgr.GetClient(), &secret, func() error {
+			controllerutil.RemoveFinalizer(&secret, env.FinalizerPrefix+viper.GetString(env.PodName))
+			return nil
+		}); err != nil {
 			logrus.Error("cleanup failed for secret ", err)
 			continue
 		}

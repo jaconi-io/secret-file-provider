@@ -34,6 +34,7 @@ func TestReconcile(t *testing.T) {
 	viper.Set(env.SecretContentSelector, "{{.Data.key1}}")
 	viper.Set(env.SecretFileNamePattern, testfile)
 	viper.Set(env.SecretFilePropertyPattern, "{{.ObjectMeta.Labels.company}}")
+	viper.Set(env.PodName, "pod1")
 
 	// Create file and add content
 	secret1 := testSecret("acme")
@@ -64,7 +65,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(result["company"]).To(Equal("value2"))
 
 	// Remove property from file
-	secret1.ObjectMeta.Finalizers = []string{env.FinalizerPrefix + "1"}
+	secret1.ObjectMeta.Finalizers = []string{env.FinalizerPrefix + "pod1"}
 	secret1.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 	reconciler = &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret1).Build()}
 	_, err = reconciler.Reconcile(context.TODO(), req)
@@ -97,6 +98,7 @@ func TestReconcileAddFinalizer(t *testing.T) {
 	defer viper.Reset()
 	defer os.Remove("foo")
 	viper.Set(env.SecretFileNamePattern, "foo")
+	viper.Set(env.PodName, "pod1")
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -112,7 +114,7 @@ func TestReconcileAddFinalizer(t *testing.T) {
 	err = reconciler.Client.Get(context.Background(), req.NamespacedName, secret)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	g.Expect(secret.Finalizers).To(ContainElement(env.FinalizerPrefix + "1"))
+	g.Expect(secret.Finalizers).To(ContainElement(env.FinalizerPrefix + "pod1"))
 }
 
 func TestReconcileRemoveFinalizer(t *testing.T) {
@@ -121,12 +123,13 @@ func TestReconcileRemoveFinalizer(t *testing.T) {
 	defer viper.Reset()
 	defer os.Remove("foo")
 	viper.Set(env.SecretFileNamePattern, "foo")
+	viper.Set(env.PodName, "pod1")
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              req.Name,
 			Namespace:         req.Namespace,
-			Finalizers:        []string{env.FinalizerPrefix + "1"},
+			Finalizers:        []string{env.FinalizerPrefix + "pod1"},
 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		},
 	}
