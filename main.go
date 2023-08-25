@@ -12,6 +12,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/bombsimon/logrusr/v4"
 	"github.com/jaconi-io/secret-file-provider/pkg/countingfinalizer"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/setup"
@@ -23,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 )
@@ -33,6 +35,7 @@ func main() {
 		Short: "Secret File Provider",
 		Long:  "Operator like sidecar to copy K8s secret content into a predefined filesystem location.",
 		Run: func(cmd *cobra.Command, args []string) {
+			log.SetLogger(logrusr.New(logrus.StandardLogger()))
 
 			logrus.Infof("Go Version: %s", runtime.Version())
 			logrus.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
