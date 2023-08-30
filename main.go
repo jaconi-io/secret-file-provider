@@ -65,7 +65,6 @@ func main() {
 								ns: {},
 							},
 						},
-						Controller: mgr.GetControllerOptions(),
 					})
 				} else {
 					mgr, err = manager.New(cfg, manager.Options{
