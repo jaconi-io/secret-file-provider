@@ -166,7 +166,7 @@ func cleanup(mgr manager.Manager) {
 		}
 
 		if _, err := controllerutil.CreateOrPatch(ctx, mgr.GetClient(), &secret, func() error {
-			controllerutil.RemoveFinalizer(&secret, env.FinalizerPrefix+viper.GetString(env.PodName))
+			controllerutil.RemoveFinalizer(&secret, env.GetFinalizer())
 			return nil
 		}); err != nil {
 			logrus.Error("cleanup failed for secret ", err)

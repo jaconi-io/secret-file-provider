@@ -65,7 +65,7 @@ func TestReconcile(t *testing.T) {
 	g.Expect(result["company"]).To(Equal("value2"))
 
 	// Remove property from file
-	secret1.ObjectMeta.Finalizers = []string{env.FinalizerPrefix + "pod1"}
+	secret1.ObjectMeta.Finalizers = []string{"jaconi.io/secret-file-provider-pod1"}
 	secret1.ObjectMeta.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 	reconciler = &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret1).Build()}
 	_, err = reconciler.Reconcile(context.TODO(), req)
@@ -98,7 +98,7 @@ func TestReconcileAddFinalizer(t *testing.T) {
 	defer viper.Reset()
 	defer os.Remove("foo")
 	viper.Set(env.SecretFileNamePattern, "foo")
-	viper.Set(env.PodName, "pod1")
+	viper.Set(env.PodName, "pod-with-a-really-long-name-of-more-than-64-characters-which-is-more-than-what-k8s-allows")
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -114,7 +114,7 @@ func TestReconcileAddFinalizer(t *testing.T) {
 	err = reconciler.Client.Get(context.Background(), req.NamespacedName, secret)
 	g.Expect(err).NotTo(HaveOccurred())
 
-	g.Expect(secret.Finalizers).To(ContainElement(env.FinalizerPrefix + "pod1"))
+	g.Expect(secret.Finalizers).To(ContainElement("jaconi.io/secret-file-provider-ich-is-more-than-what-k8s-allows"))
 }
 
 func TestReconcileRemoveFinalizer(t *testing.T) {
@@ -123,13 +123,13 @@ func TestReconcileRemoveFinalizer(t *testing.T) {
 	defer viper.Reset()
 	defer os.Remove("foo")
 	viper.Set(env.SecretFileNamePattern, "foo")
-	viper.Set(env.PodName, "pod1")
+	viper.Set(env.PodName, "pod-with-a-really-long-name-of-more-than-64-characters-which-is-more-than-what-k8s-allows")
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              req.Name,
 			Namespace:         req.Namespace,
-			Finalizers:        []string{env.FinalizerPrefix + "pod1"},
+			Finalizers:        []string{"jaconi.io/secret-file-provider-ich-is-more-than-what-k8s-allows"},
 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
 		},
 	}
