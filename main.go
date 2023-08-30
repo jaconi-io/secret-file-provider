@@ -20,6 +20,7 @@ import (
 	"github.com/spf13/viper"
 
 	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -27,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 func main() {
@@ -54,13 +56,22 @@ func main() {
 					// if only one NS is defined, we attach that to manager, so that
 					// we are able to use K8s roles instead of clusterroles
 					mgr, err = manager.New(cfg, manager.Options{
-						MetricsBindAddress:     ":" + viper.GetString(env.PortMetrics),
+						Metrics: server.Options{
+							BindAddress: ":" + viper.GetString(env.PortMetrics),
+						},
 						HealthProbeBindAddress: ":" + viper.GetString(env.PortHealthcheck),
-						Namespace:              ns,
+						Cache: cache.Options{
+							DefaultNamespaces: map[string]cache.Config{
+								ns: {},
+							},
+						},
+						Controller: mgr.GetControllerOptions(),
 					})
 				} else {
 					mgr, err = manager.New(cfg, manager.Options{
-						MetricsBindAddress:     ":" + viper.GetString(env.PortMetrics),
+						Metrics: server.Options{
+							BindAddress: ":" + viper.GetString(env.PortMetrics),
+						},
 						HealthProbeBindAddress: ":" + viper.GetString(env.PortHealthcheck),
 					})
 				}
