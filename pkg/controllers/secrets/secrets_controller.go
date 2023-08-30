@@ -44,7 +44,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 		// Remove the finalizer, once the cleanup completed successfully.
 		if _, err := controllerutil.CreateOrPatch(ctx, r.Client, secret, func() error {
-			controllerutil.RemoveFinalizer(secret, env.FinalizerPrefix+viper.GetString(env.PodName))
+			controllerutil.RemoveFinalizer(secret, env.GetFinalizer())
 			return nil
 		}); err != nil {
 			return reconcile.Result{}, fmt.Errorf("removing finalizer failed: %w", err)
@@ -55,7 +55,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 
 	// Add a finalizer to ensure proper cleanup.
 	if _, err := controllerutil.CreateOrPatch(ctx, r.Client, secret, func() error {
-		controllerutil.AddFinalizer(secret, env.FinalizerPrefix+viper.GetString(env.PodName))
+		controllerutil.AddFinalizer(secret, env.GetFinalizer())
 		return nil
 	}); err != nil {
 		return reconcile.Result{}, fmt.Errorf("adding finalizer failed: %w", err)

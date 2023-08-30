@@ -36,6 +36,4 @@ const (
 
 	DefaultLogJson  = false
 	DefaultLogLevel = logrus.InfoLevel
-
-	FinalizerPrefix = "jaconi.io/secret-file-provider-"
 )
