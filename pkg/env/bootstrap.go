@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -29,6 +30,8 @@ func Bootstrap(rootCmd *cobra.Command) {
 	rootCmd.MarkFlagRequired(PodName)
 
 	viper.BindPFlags(rootCmd.Flags())
+
+	cobra.OnInitialize(unmarkRequired(rootCmd))
 }
 
 func initConfig() {
@@ -36,10 +39,20 @@ func initConfig() {
 	// dots.
 	replacer := strings.NewReplacer("-", "_", ".", "_")
 	viper.SetEnvKeyReplacer(replacer)
-
-	viper.AutomaticEnv()
 }
 
 func init() {
 	cobra.OnInitialize(initConfig, viper.AutomaticEnv)
+}
+
+// unmarkRequired works around an issue with cobra and viper, where required flags - set via environment variables - are
+// not recognized. See https://github.com/spf13/viper/issues/397
+func unmarkRequired(cmd *cobra.Command) func() {
+	return func() {
+		cmd.Flags().VisitAll(func(f *pflag.Flag) {
+			if viper.IsSet(f.Name) {
+				cmd.Flags().SetAnnotation(f.Name, cobra.BashCompOneRequiredFlag, []string{"false"})
+			}
+		})
+	}
 }
