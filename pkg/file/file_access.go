@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
-	"github.com/jaconi-io/secret-file-provider/pkg/logger"
 	"github.com/jaconi-io/secret-file-provider/pkg/templates"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -18,12 +17,7 @@ import (
 // Name will return either the filename of a single file to contain the secret information
 // or the directory path, where all sub-files should be stored in.
 func Name(secret *corev1.Secret) string {
-
-	filePattern := viper.GetString(env.SecretFileNamePattern)
-	if len(filePattern) < 1 {
-		logger.New(secret).Fatalf("Missing required property %s", env.SecretFileNamePattern)
-	}
-	return templates.Resolve(filePattern, secret)
+	return templates.Resolve(viper.GetString(env.SecretFileNamePattern), secret)
 }
 
 // ReadAll returns the secret contents of all existing files for the secret.

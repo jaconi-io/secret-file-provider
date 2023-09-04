@@ -28,6 +28,7 @@ func Bootstrap(rootCmd *cobra.Command) {
 	rootCmd.Flags().String(CallbackContenttype, "application/json", "content-type of callback request body")
 
 	rootCmd.MarkFlagRequired(PodName)
+	rootCmd.MarkFlagRequired(SecretFileNamePattern)
 
 	viper.BindPFlags(rootCmd.Flags())
 
