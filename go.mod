@@ -3,7 +3,7 @@ module github.com/jaconi-io/secret-file-provider
 go 1.21
 
 require (
-	github.com/bombsimon/logrusr/v4 v4.0.0
+	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/iancoleman/strcase v0.3.0
 	github.com/onsi/gomega v1.29.0
 	github.com/sirupsen/logrus v1.9.3
