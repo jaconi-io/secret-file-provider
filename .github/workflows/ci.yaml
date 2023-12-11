@@ -32,7 +32,7 @@ jobs:
       - uses: docker/build-push-action@v5
         with:
           tags: ghcr.io/${{ github.repository }}:latest      
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
       - name: Test
