@@ -52,29 +52,7 @@ func createNameSelector(regexString string) predicate.Predicate {
 			namespaces[ns] = struct{}{}
 		}
 	}
-	regex := regexp.MustCompilePOSIX(regexString)
-	return predicate.Funcs{
-		CreateFunc: func(ce event.CreateEvent) bool {
-			return namespaceMatch(namespaces, ce.Object.GetNamespace()) && regex.Match([]byte(ce.Object.GetName()))
-		},
-		UpdateFunc: func(ue event.UpdateEvent) bool {
-			return namespaceMatch(namespaces, ue.ObjectNew.GetNamespace()) && regex.Match([]byte(ue.ObjectNew.GetName()))
-		},
-		DeleteFunc: func(de event.DeleteEvent) bool {
-			return namespaceMatch(namespaces, de.Object.GetNamespace()) && regex.Match([]byte(de.Object.GetName()))
-		},
-	}
-}
-
-func namespaceMatch(namespaces map[string]struct{}, namespace string) bool {
-	if len(namespaces) < 1 {
-		// match all
-		return true
-	}
-	if _, ok := namespaces[namespace]; ok {
-		return true
-	}
-	return false
+	return createFunctionSelectFilter(namespaces, regexString)
 }
 
 // createSecretSelectFilter creates a predicate to check K8s label selector matches for reconciles.
@@ -90,5 +68,51 @@ func createSecretSelectFilter(selectFilter string) predicate.Predicate {
 	if err != nil {
 		logrus.WithError(err).Fatalf("Failed convert selector %s", selectFilter)
 	}
-	return filter
+	return predicate.And(filter, createAllFunctionSelectFilter())
+}
+
+func createFunctionSelectFilter(namespaces map[string]struct{}, regexString string) predicate.Predicate {
+	regex := regexp.MustCompilePOSIX(regexString)
+	funcs := predicate.Funcs{
+		CreateFunc: func(ce event.CreateEvent) bool {
+			return namespaceMatch(namespaces, ce.Object.GetNamespace()) && regex.Match([]byte(ce.Object.GetName()))
+		},
+		UpdateFunc: func(ue event.UpdateEvent) bool {
+			return namespaceMatch(namespaces, ue.ObjectNew.GetNamespace()) && regex.Match([]byte(ue.ObjectNew.GetName()))
+		},
+	}
+	if viper.GetBool(env.SecretDeletionWatch) {
+		funcs.DeleteFunc = func(de event.DeleteEvent) bool {
+			return namespaceMatch(namespaces, de.Object.GetNamespace()) && regex.Match([]byte(de.Object.GetName()))
+		}
+	}
+	return funcs
+}
+
+func createAllFunctionSelectFilter() predicate.Predicate {
+	funcs := predicate.Funcs{
+		CreateFunc: func(_ event.CreateEvent) bool {
+			return true
+		},
+		UpdateFunc: func(_ event.UpdateEvent) bool {
+			return true
+		},
+	}
+	if viper.GetBool(env.SecretDeletionWatch) {
+		funcs.DeleteFunc = func(_ event.DeleteEvent) bool {
+			return true
+		}
+	}
+	return funcs
+}
+
+func namespaceMatch(namespaces map[string]struct{}, namespace string) bool {
+	if len(namespaces) < 1 {
+		// match all
+		return true
+	}
+	if _, ok := namespaces[namespace]; ok {
+		return true
+	}
+	return false
 }

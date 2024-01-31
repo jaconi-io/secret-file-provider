@@ -49,6 +49,65 @@ func TestReconcile(t *testing.T) {
 	g.Expect(result).To(HaveLen(1))
 	g.Expect(result["acme"]).To(Equal("value1"))
 
+	// verify, that per default no finalizer is added
+	err = reconciler.Client.Get(context.Background(), req.NamespacedName, secret1)
+	g.Expect(err).NotTo(HaveOccurred())
+
+	g.Expect(secret1.Finalizers).To(BeEmpty())
+
+	// Append content to file
+	viper.Set(env.SecretContentSelector, "{{.Data.key2}}")
+	secret2 := testSecret("company")
+	reconciler = &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret2).Build()}
+
+	_, err = reconciler.Reconcile(context.TODO(), req)
+	g.Expect(err).To(BeNil())
+
+	// verify that new property was added
+	result = readTestFile()
+
+	g.Expect(result).To(HaveLen(2))
+	g.Expect(result["acme"]).To(Equal("value1"))
+	g.Expect(result["company"]).To(Equal("value2"))
+
+	// Change content selector to push all
+	viper.Set(env.SecretContentSelector, "")
+	secret3 := testSecret("uni")
+	reconciler = &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret3).Build()}
+
+	_, err = reconciler.Reconcile(context.TODO(), req)
+	g.Expect(err).To(BeNil())
+
+	// verify that new property tree was added
+	result = readTestFile()
+
+	g.Expect(result["uni"]).To(Equal(map[interface{}]interface{}{"key1": "value1", "key2": "value2"}))
+}
+
+func TestReconcileWithDeletion(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	defer viper.Reset()
+	defer os.Remove(testfile)
+	viper.Set(env.SecretContentSelector, "{{.Data.key1}}")
+	viper.Set(env.SecretFileNamePattern, testfile)
+	viper.Set(env.SecretFilePropertyPattern, "{{.ObjectMeta.Labels.company}}")
+	viper.Set(env.PodName, "pod1")
+	viper.Set(env.SecretDeletionWatch, "true")
+
+	// Create file and add content
+	secret1 := testSecret("acme")
+	reconciler := &Reconciler{Client: fake.NewClientBuilder().WithObjects(secret1).Build()}
+
+	_, err := reconciler.Reconcile(context.TODO(), req)
+	g.Expect(err).To(BeNil())
+
+	// verify file existing and has proper content
+	result := readTestFile()
+	g.Expect(err).To(BeNil())
+	g.Expect(result).To(HaveLen(1))
+	g.Expect(result["acme"]).To(Equal("value1"))
+
 	// Append content to file
 	viper.Set(env.SecretContentSelector, "{{.Data.key2}}")
 	secret2 := testSecret("company")
@@ -99,6 +158,7 @@ func TestReconcileAddFinalizer(t *testing.T) {
 	defer os.Remove("foo")
 	viper.Set(env.SecretFileNamePattern, "foo")
 	viper.Set(env.PodName, "pod-with-a-really-long-name-of-more-than-64-characters-which-is-more-than-what-k8s-allows")
+	viper.Set(env.SecretDeletionWatch, "true")
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -124,6 +184,7 @@ func TestReconcileRemoveFinalizer(t *testing.T) {
 	defer os.Remove("foo")
 	viper.Set(env.SecretFileNamePattern, "foo")
 	viper.Set(env.PodName, "pod-with-a-really-long-name-of-more-than-64-characters-which-is-more-than-what-k8s-allows")
+	viper.Set(env.SecretDeletionWatch, "true")
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

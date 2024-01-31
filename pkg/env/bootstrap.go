@@ -19,6 +19,7 @@ func Bootstrap(rootCmd *cobra.Command) {
 	rootCmd.Flags().String(SecretNameSelector, "", "secret name pattern to consider")
 	rootCmd.Flags().String(SecretContentSelector, "", "secret content path to copy")
 	rootCmd.Flags().String(SecretKeyTransformation, "", "transformation function for all secret keys")
+	rootCmd.Flags().Bool(SecretDeletionWatch, false, "set to 'true' if secret deletion should be watched and therefore their content needs to be dropped from FS")
 	rootCmd.Flags().Bool(SecretFileSingle, false, "set to 'true' if each secret key should get it's own file")
 	rootCmd.Flags().String(SecretFileNamePattern, "", "target filename pattern")
 	rootCmd.Flags().String(SecretFilePropertyPattern, "", "base property path in target file")
