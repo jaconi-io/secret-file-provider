@@ -37,6 +37,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 	}
 
 	if secret.DeletionTimestamp != nil {
+		if !viper.GetBool(env.SecretDeletionWatch) {
+			// ignore deletion
+			return reconcile.Result{}, nil
+		}
 		err := change(secret, remove)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -53,12 +57,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 		return reconcile.Result{}, nil
 	}
 
-	// Add a finalizer to ensure proper cleanup.
-	if _, err := controllerutil.CreateOrPatch(ctx, r.Client, secret, func() error {
-		controllerutil.AddFinalizer(secret, env.GetFinalizer())
-		return nil
-	}); err != nil {
-		return reconcile.Result{}, fmt.Errorf("adding finalizer failed: %w", err)
+	if viper.GetBool(env.SecretDeletionWatch) {
+		// Add a finalizer to ensure proper cleanup.
+		if _, err := controllerutil.CreateOrPatch(ctx, r.Client, secret, func() error {
+			controllerutil.AddFinalizer(secret, env.GetFinalizer())
+			return nil
+		}); err != nil {
+			return reconcile.Result{}, fmt.Errorf("adding finalizer failed: %w", err)
+		}
 	}
 
 	return reconcile.Result{}, change(secret, add)

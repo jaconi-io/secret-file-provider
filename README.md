@@ -29,6 +29,9 @@ Sidecar implementation which is used to copy K8s secret content into local files
     * name.pattern - naming pattern of the target file, supporting [golang template](https://pkg.go.dev/text/template) syntax. If *single* is set, this will be used as target *directory* pattern for the single files.
     * property.pattern - (optional) property base path to map the secret content under, supporting [golang template](https://pkg.go.dev/text/template) syntax
   * key.transformation - (optional) transformation function for the keys in the secret; one of [ToCamel|ToLowerCamel|ToKebab|ToScreamingKebab|ToSnake|ToScreamingSnake]
+  * deletion.watch - (optional) if set to *true*, sidecar will watch for secret deletion and drop their content from the
+  file-system as well. Note that **should not be used** at the moment, as this implementation currently adds finalizers
+  to secrets, which will not get removed.
 
 ## Examples
 
@@ -128,5 +131,5 @@ which will create by default a *jaconi.io/secret-file-provider:latest* image.
 ## Open Issues
 
 * Deletion case 
-  * secret deletion might be missed, if secret gets deleted completely between two reconciles
-  * single file deletion currently not supported
+  * When using approach with finalizers, those will get stuck forever if the pod is just terminated, as 
+  there is no cleanup logic in place

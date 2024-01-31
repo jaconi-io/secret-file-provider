@@ -22,6 +22,8 @@ const (
 
 	SecretKeyTransformation = "secret.key.transformation"
 
+	SecretDeletionWatch = "secret.deletion.watch"
+
 	CallbackMethod      = "callback.method"
 	CallbackUrl         = "callback.url"
 	CallbackBody        = "callback.body"
