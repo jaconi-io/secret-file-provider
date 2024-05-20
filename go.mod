@@ -14,7 +14,7 @@ require (
 	github.com/spf13/viper v1.18.2
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.30.0
-	k8s.io/apimachinery v0.30.0
+	k8s.io/apimachinery v0.30.1
 	k8s.io/client-go v0.30.0
 	sigs.k8s.io/controller-runtime v0.18.2
 	sigs.k8s.io/e2e-framework v0.3.0
