@@ -2,9 +2,10 @@ package maps
 
 import (
 	"fmt"
+	"log/slog"
+	"os"
 
 	"github.com/iancoleman/strcase"
-	"github.com/sirupsen/logrus"
 )
 
 var KeyTransformFunctions = map[string]func(string) string{
@@ -87,7 +88,8 @@ func TransformKeys(origin map[interface{}]interface{}, transform string) map[int
 	if function, ok := KeyTransformFunctions[transform]; ok {
 		return transformKeysInt(origin, function)
 	}
-	logrus.Fatalf("Illegal transform function %s", transform)
+	slog.Error("illegal transform function", "function", transform)
+	os.Exit(1)
 	return nil
 }
 

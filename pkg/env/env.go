@@ -1,7 +1,7 @@
 package env
 
 import (
-	"github.com/sirupsen/logrus"
+	"log/slog"
 )
 
 const (
@@ -37,5 +37,5 @@ const (
 	DefaultPortDebug       = 1234
 
 	DefaultLogJson  = false
-	DefaultLogLevel = logrus.InfoLevel
+	DefaultLogLevel = slog.LevelInfo
 )

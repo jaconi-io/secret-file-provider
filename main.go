@@ -2,20 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
 	"regexp"
 	"runtime"
 	"time"
 
 	"k8s.io/apimachinery/pkg/labels"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/bombsimon/logrusr/v4"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/setup"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -25,7 +27,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/manager/signals"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -36,16 +37,13 @@ func main() {
 		Use:   "secret-file-provider",
 		Short: "Secret File Provider",
 		Long:  "Operator like sidecar to copy K8s secret content into a predefined filesystem location.",
-		Run: func(cmd *cobra.Command, args []string) {
-			log.SetLogger(logrusr.New(logrus.StandardLogger()))
-
-			logrus.Infof("Go Version: %s", runtime.Version())
-			logrus.Infof("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			slog.Info("go", "version", runtime.Version(), "os", runtime.GOOS, "arch", runtime.GOARCH)
 
 			// Get a config to talk to the apiserver
 			cfg, err := config.GetConfig()
 			if err != nil {
-				logrus.WithError(err).Fatal("failed to get config for apiserver")
+				return fmt.Errorf("failed to get config for apiserver: %w", err)
 			}
 
 			var mgr manager.Manager
@@ -79,7 +77,7 @@ func main() {
 
 			go func() {
 				// handler is registered by blank import of net/http/pprof
-				logrus.Println(http.ListenAndServe("localhost:"+viper.GetString(env.PortDebug), nil))
+				slog.Info("", "error", http.ListenAndServe("localhost:"+viper.GetString(env.PortDebug), nil))
 			}()
 
 			// Add default liveness and readiness probes.
@@ -89,16 +87,18 @@ func main() {
 			// register controller implementations
 			setup.RegisterControllers(mgr)
 
-			logrus.Info("Starting the Service")
+			slog.Info("starting the service")
 
 			// Start the Service
 			if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-				logrus.WithError(err).Fatal("Manager exited non-zero")
+				return fmt.Errorf("manager exited with non-zero exit code: %w", err)
 			}
-			logrus.Info("Retrieved SIGTERM")
 
+			slog.Info("retrieved SIGTERM")
 			cleanup(mgr)
-			logrus.Info("cleanup completed")
+			slog.Info("cleanup completed")
+
+			return nil
 		},
 	}
 	env.Bootstrap(rootCmd)
@@ -110,12 +110,13 @@ func retry(maxAttempts int, action func() error) {
 	if err != nil {
 		if maxAttempts > 0 {
 			// retry
-			logrus.WithError(err).Infof("will retry %d more times", maxAttempts)
+			slog.Info(fmt.Sprintf("will retry %d more times", maxAttempts), "error", err)
 			time.Sleep(time.Second)
 			retry(maxAttempts-1, action)
 		} else {
 			// give up
-			logrus.WithError(err).Fatal("give up")
+			slog.Error("give up", "error", err)
+			os.Exit(1)
 		}
 	}
 }
@@ -127,7 +128,7 @@ func cleanup(mgr manager.Manager) {
 	if viper.GetString(env.SecretLabelSelector) != "" {
 		labelSelector, err := labels.Parse(viper.GetString(env.SecretLabelSelector))
 		if err != nil {
-			logrus.WithError(err).Error("cleanup failed due to invalid secret label selector")
+			slog.Error("cleanup failed due to invalid secret label selector", "error", err)
 			return
 		}
 
@@ -141,7 +142,7 @@ func cleanup(mgr manager.Manager) {
 
 	secrets := &corev1.SecretList{}
 	if err := mgr.GetClient().List(context.Background(), secrets, listOptions); err != nil {
-		logrus.Error("cleanup failed", err)
+		slog.Error("cleanup failed", "error", err)
 		return
 	}
 
@@ -169,7 +170,7 @@ func cleanup(mgr manager.Manager) {
 			controllerutil.RemoveFinalizer(&secret, env.GetFinalizer())
 			return nil
 		}); err != nil {
-			logrus.Error("cleanup failed for secret ", err)
+			slog.Error("cleanup failed for secret", "error", err)
 			continue
 		}
 	}

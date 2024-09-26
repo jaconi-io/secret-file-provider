@@ -3,13 +3,13 @@ package secrets
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/callback"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/file"
 	"github.com/jaconi-io/secret-file-provider/pkg/logger"
 	"github.com/jaconi-io/secret-file-provider/pkg/maps"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +32,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 			// do nothing
 			return reconcile.Result{}, nil
 		}
-		logrus.WithError(err).Error("Failed to read secret")
+		slog.Error("failed to read secret", "error", err)
 		return reconcile.Result{}, err
 	}
 
@@ -74,19 +74,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (
 // existing callback endpoint
 // Returns an error if anything went wrong
 func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) error) error {
-	log := logger.New(secret)
 	err := changeFunc(secret)
 	if err != nil {
-		return err
-	}
-	if err != nil {
-		log.WithError(err).Error("Failed to update content")
-		return err
+		return fmt.Errorf("failed to update content: %w", err)
 	}
 	err = callback.Call(secret)
 	if err != nil {
-		log.WithError(err).Error("Failed to run callback")
-		return err
+		return fmt.Errorf("failed to run callback: %w", err)
 	}
 	return nil
 }
