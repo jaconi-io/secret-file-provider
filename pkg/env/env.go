@@ -25,9 +25,9 @@ const (
 	SecretDeletionWatch = "secret.deletion.watch"
 
 	CallbackMethod      = "callback.method"
-	CallbackUrl         = "callback.url"
+	CallbackURL         = "callback.url"
 	CallbackBody        = "callback.body"
-	CallbackContenttype = "callback.contenttype"
+	CallbackContentType = "callback.content-type"
 
 	LogJson  = "log.json"
 	LogLevel = "log.level"

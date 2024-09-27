@@ -45,7 +45,8 @@ func TestExample(t *testing.T) {
 			logs, err := readLogs(ctx, c, pod)
 			g.Expect(err).NotTo(HaveOccurred())
 
-			g.Expect(logs).To(ContainSubstring("Successfuly written /secrets/secrets.yaml"))
+			g.Expect(logs).To(ContainSubstring("successfuly written"))
+			g.Expect(logs).To(ContainSubstring("path=/secrets/secrets.yaml"))
 			g.Expect(logs).To(ContainSubstring("name=example"))
 			g.Expect(logs).To(ContainSubstring("namespace=" + pod.Namespace))
 
