@@ -110,7 +110,7 @@ ImSecure...believeIt!
 ## Local Developmet
 
 **Preconditions**
-* Installed and set up [Golang 1.19](https://go.dev/doc/install) or newer
+* Installed and set up [Go 1.21](https://go.dev/doc/install) or newer
 * Installed [make](https://www.tutorialspoint.com/unix_commands/make.htm)
 
 To build the tool and run all tests, just use 

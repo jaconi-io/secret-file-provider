@@ -1,12 +1,14 @@
 package setup
 
 import (
+	"fmt"
+	"log/slog"
+	"os"
 	"regexp"
 	"strings"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/controllers/secrets"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,13 +19,12 @@ import (
 )
 
 func RegisterControllers(mgr manager.Manager) {
-
-	logrus.Info("Register Reconcilers...")
+	slog.Info("register reconcilers...")
 	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}).
 		WithEventFilter(createFilter()).
 		Complete(&secrets.Reconciler{Client: mgr.GetClient()}); err != nil {
-		logrus.WithError(err).Fatal("could not create controller")
+		slog.Error("could not create controller", "error", err)
 	}
 }
 
@@ -37,7 +38,8 @@ func createFilter() predicate.Predicate {
 	if len(nameSelector) > 0 {
 		return createNameSelector(nameSelector)
 	}
-	logrus.Fatal("No secret selector set")
+	slog.Error("no secret selector set")
+	os.Exit(1)
 	return nil
 }
 
@@ -62,11 +64,13 @@ func createSecretSelectFilter(selectFilter string) predicate.Predicate {
 	// TODO use real k8s selector instead of object meta selector?
 	selector, err := metav1.ParseToLabelSelector(selectFilter)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed to parse given selector %s", selectFilter)
+		slog.Error(fmt.Sprintf("failed to parse given selector %s", selectFilter), "error", err)
+		os.Exit(1)
 	}
 	filter, err := predicate.LabelSelectorPredicate(*selector)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed convert selector %s", selectFilter)
+		slog.Error(fmt.Sprintf("failed to convert selector %s", selectFilter), "error", err)
+		os.Exit(1)
 	}
 	return predicate.And(filter, createAllFunctionSelectFilter())
 }

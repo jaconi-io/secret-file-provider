@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
@@ -67,7 +68,8 @@ func Call(secret *corev1.Secret) error {
 	default:
 		{
 			// not supported, fail fast
-			log.Fatalf("Unsupported HTTP method %s for callback", method)
+			log.Error("unsupported HTTP method for callback", "method", method)
+			os.Exit(1)
 		}
 	}
 	if err != nil {
@@ -75,18 +77,20 @@ func Call(secret *corev1.Secret) error {
 	}
 	if resp.StatusCode == 405 {
 		// method not allowed, fail fast
-		log.Panicf("HTTP method %s not supported by server", method)
+		log.Error("HTTP method not supported by server", "method", method)
+		panic(fmt.Errorf("HTTP method %s not supported by server", method))
 	}
 	if resp.StatusCode > 299 {
 		// might be a temporary issue, do reconcile
-		return fmt.Errorf("Unexpected status code %d", resp.StatusCode)
+		return fmt.Errorf("unexpected status code %d", resp.StatusCode)
 	}
 	defer resp.Body.Close()
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.WithError(err).Fatalf("Failed to call %s %s", method, callbackUrl)
+		log.Error("failed to call callback URL", "url", callbackUrl, "error", err)
+		os.Exit(1)
 	}
-	log.Debugf("Successfuly ran callback %s %s: '%s'", method, callbackUrl, string(bodyBytes))
+	log.Debug("successfully ran callback", "method", method, "url", callbackUrl, "response", string(bodyBytes))
 	return nil
 }
 

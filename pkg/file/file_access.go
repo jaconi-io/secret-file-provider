@@ -3,12 +3,12 @@ package file
 import (
 	"fmt"
 	"io/ioutil"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/templates"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +22,7 @@ func Name(secret *corev1.Secret) string {
 
 // ReadAll returns the secret contents of all existing files for the secret.
 // Return current file contents
-func ReadAll(logger *logrus.Entry, filename string) map[interface{}]interface{} {
+func ReadAll(logger *slog.Logger, filename string) map[interface{}]interface{} {
 	if viper.GetBool(env.SecretFileSingle) {
 		return readMultipleFiles(logger, filename)
 	}
@@ -34,26 +34,26 @@ func ReadAll(logger *logrus.Entry, filename string) map[interface{}]interface{} 
 	content := make(map[interface{}]interface{})
 	err = yaml.Unmarshal(bytes, content)
 	if err != nil {
-		logger.WithError(err).Errorf("Failed to map content of %s:  %s", filename, string(bytes))
+		logger.Error("failed to map content", "filename", filename, "content", string(bytes), "error", err)
 	}
 	return content
 }
 
-func readMultipleFiles(logger *logrus.Entry, filename string) map[interface{}]interface{} {
+func readMultipleFiles(logger *slog.Logger, filename string) map[interface{}]interface{} {
 	result := make(map[interface{}]interface{})
 	files, err := ioutil.ReadDir(filename)
 	if os.IsNotExist(err) {
 		return result
 	}
 	if err != nil {
-		logger.WithError(err).Errorf("Failed to read content of %s", filename)
+		logger.Error("failed to read content", "path", filename, "error", err)
 		return result
 	}
 	for _, file := range files {
 		fullpath := filepath.Join(filename, file.Name())
 		bytes, err := os.ReadFile(fullpath)
 		if err != nil {
-			logger.WithError(err).Errorf("Failed to read file content for %s", file.Name())
+			logger.Error("failed to read file content", "filename", filename, "error", err)
 			bytes = []byte{}
 		}
 		result[file.Name()] = string(bytes)
@@ -64,46 +64,48 @@ func readMultipleFiles(logger *logrus.Entry, filename string) map[interface{}]in
 // WriteAll writes all content either into a single file with the given identifier or into multiple
 // ones under a directory with the given name.
 // Returns potential error
-func WriteAll(logger *logrus.Entry, filename string, content map[interface{}]interface{}) error {
+func WriteAll(logger *slog.Logger, filename string, content map[interface{}]interface{}) error {
 
 	if viper.GetBool(env.SecretFileSingle) {
 		return writeMultipleFiles(logger, filename, content)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
-		logger.WithError(err).Fatalf("Failed to create parent directories for %s", filename)
+		logger.Error("failed to create parent directories", "path", filename, "error", err)
+		os.Exit(1)
 	}
 
 	yamlData, err := yaml.Marshal(content)
 	if err != nil {
-		logger.WithError(err).Errorf("Failed to parse secret content for writing into %s", filename)
+		logger.Error("failed to parse secret content for writing", "path", filename, "error", err)
 		// do not retry, because secret content is just invalid
 		return nil
 	}
 
 	err = os.WriteFile(filename, yamlData, 0644)
 	if err != nil {
-		logger.WithError(err).Errorf("Failed to write secret to %s", filename)
+		logger.Error("failed to write secret", "path", filename, "error", err)
 		return err
 	}
-	logger.Infof("Successfuly written %s", filename)
+	logger.Info("successfuly written", "path", filename)
 	return nil
 }
 
-func writeMultipleFiles(logger *logrus.Entry, filename string, content map[interface{}]interface{}) error {
+func writeMultipleFiles(logger *slog.Logger, filename string, content map[interface{}]interface{}) error {
 	// TODO handle delete file case!
 	if err := os.MkdirAll(filename, os.ModePerm); err != nil {
-		logger.WithError(err).Fatalf("Failed to create parent directories for %s", filename)
+		logger.Error("failed to create parent directories", "path", filename)
+		os.Exit(1)
 	}
 	for k, v := range content {
 		file := fmt.Sprintf("%v", k)
 		content := fmt.Sprintf("%v", v)
 		err := os.WriteFile(filepath.Join(filename, file), []byte(content), 0644)
 		if err != nil {
-			logger.WithError(err).Errorf("Failed to write secret to %s", file)
+			logger.Error("failed to write secret", "path", file, "error", err)
 			return err
 		}
-		logger.Infof("Successfuly written %s", file)
+		logger.Info("successfully written", "path", file)
 	}
 	return nil
 }

@@ -2,10 +2,11 @@ package templates
 
 import (
 	"bytes"
+	"log/slog"
+	"os"
 	"strings"
 	"text/template"
 
-	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -39,13 +40,14 @@ func Resolve(pattern string, secret *corev1.Secret) string {
 	// see https://pkg.go.dev/text/template
 	tmpl, err := template.New("test").Funcs(funcMap).Parse(patternToApply)
 	if err != nil {
-		logrus.WithError(err).Fatalf("Failed to parse template '%s'", pattern)
+		slog.Error("failed to parse template", "template", pattern, "error", err)
+		os.Exit(1)
 	}
 
 	buf := new(bytes.Buffer)
 	err = tmpl.Execute(buf, secret)
 	if err != nil {
-		logrus.WithError(err).Errorf("Failed to execute template for %s/%s", secret.Namespace, secret.Name)
+		slog.Error("failed to execute template", "namespace", secret.Namespace, "name", secret.Name, "error", err)
 		return ""
 	}
 	return string(buf.Bytes())

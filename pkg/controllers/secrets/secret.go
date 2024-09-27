@@ -1,11 +1,11 @@
 package secrets
 
 import (
+	"log/slog"
 	"strings"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	"github.com/jaconi-io/secret-file-provider/pkg/templates"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -49,7 +49,7 @@ func readSecretContent(secret *corev1.Secret) map[interface{}]interface{} {
 		}
 	} else if !strings.Contains(selectorTemplate, "{{") {
 		// not a go template, log warning and put all into map
-		logrus.Warnf("Illegal selector pattern '%s'. Expecting go template", selectorTemplate)
+		slog.Warn("illegal selector pattern; expecting go template", "pattern", selectorTemplate)
 		for k, v := range secret.Data {
 			mapContent[k] = string(v)
 		}
@@ -69,7 +69,7 @@ func readSecretContent(secret *corev1.Secret) map[interface{}]interface{} {
 
 		if len(selectorTemplate) < 1 {
 			// illegal configuration, should never happen
-			logrus.Warnf("Single value but no selector found for %s/%s", secret.Namespace, secret.Name)
+			slog.Warn("single value but no selector found", "namespace", secret.Namespace, "name", secret.Name)
 			return make(map[interface{}]interface{})
 		}
 

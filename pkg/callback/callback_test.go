@@ -7,7 +7,6 @@ import (
 
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
 	. "github.com/onsi/gomega"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,9 +23,6 @@ func TestCall(t *testing.T) {
 	}
 	expectedBody := `{"updated":"foo"}`
 	viper.Set(env.CallbackBody, `{"updated":"{{.ObjectMeta.Name}}"}`)
-	storedLevel := logrus.GetLevel()
-	logrus.SetLevel(logrus.DebugLevel)
-	defer logrus.SetLevel(storedLevel)
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		// Test request parameters
@@ -65,14 +61,14 @@ func TestCall(t *testing.T) {
 
 	err := Call(secret)
 	g.Expect(err).NotTo(BeNil())
-	g.Expect(err.Error()).To(Equal("Unexpected status code 400"))
+	g.Expect(err.Error()).To(Equal("unexpected status code 400"))
 
 	// 500 error
 	viper.Set(env.CallbackUrl, server.URL+"/error500")
 
 	err = Call(secret)
 	g.Expect(err).NotTo(BeNil())
-	g.Expect(err.Error()).To(Equal("Unexpected status code 500"))
+	g.Expect(err.Error()).To(Equal("unexpected status code 500"))
 
 	// 405 error - method not allowed -> expect panic
 	viper.Set(env.CallbackUrl, server.URL+"/error405")
