@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/callback"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
@@ -78,9 +79,14 @@ func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) error) error 
 	if err != nil {
 		return fmt.Errorf("failed to update content: %w", err)
 	}
-	err = callback.Call(secret)
+	retry, err := callback.Call(secret)
 	if err != nil {
-		return fmt.Errorf("failed to run callback: %w", err)
+		if retry {
+			return fmt.Errorf("failed to run callback: %w", err)
+		} else {
+			logger.New(secret).Error("failed to run callback", "error", err)
+			os.Exit(1)
+		}
 	}
 	return nil
 }

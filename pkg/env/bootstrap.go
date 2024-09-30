@@ -1,6 +1,7 @@
 package env
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -23,10 +24,10 @@ func Bootstrap(rootCmd *cobra.Command) {
 	rootCmd.Flags().Bool(SecretFileSingle, false, "set to 'true' if each secret key should get it's own file")
 	rootCmd.Flags().String(SecretFileNamePattern, "", "target filename pattern")
 	rootCmd.Flags().String(SecretFilePropertyPattern, "", "base property path in target file")
-	rootCmd.Flags().String(CallbackUrl, "", "url to call with GET request for successful file updates")
-	rootCmd.Flags().String(CallbackMethod, "GET", "method for callback URL, sent on file updates")
+	rootCmd.Flags().String(CallbackURL, "", "URL to call with GET request for successful file updates")
+	rootCmd.Flags().String(CallbackMethod, http.MethodGet, "method for callback URL, sent on file updates")
 	rootCmd.Flags().String(CallbackBody, "", "body sent with callback on file updates")
-	rootCmd.Flags().String(CallbackContenttype, "application/json", "content-type of callback request body")
+	rootCmd.Flags().String(CallbackContentType, "application/json", "Content-Type header of callback requests")
 
 	rootCmd.MarkFlagRequired(PodName)
 	rootCmd.MarkFlagRequired(SecretFileNamePattern)
