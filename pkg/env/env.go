@@ -11,15 +11,23 @@ const (
 	PortMetrics     = "port.metrics"
 	PortDebug       = "port.debug"
 
-	SecretLabelSelector     = "secret.selector.label"
-	SecretNameSelector      = "secret.selector.name"
+	// K8s label selector
+	SecretLabelSelector = "secret.selector.label"
+	// K8s secret name selector
+	SecretNameSelector = "secret.selector.name"
+	// K8s namespace selector
 	SecretNamespaceSelector = "secret.selector.namespace"
-	SecretContentSelector   = "secret.selector.content"
+	// read only a specific field of the whole secret data
+	SecretContentSelector = "secret.selector.content"
 
-	SecretFileSingle          = "secret.file.single"
-	SecretFileNamePattern     = "secret.file.name.pattern"
+	// true, if all secrets should be contained by a single file
+	SecretFileSingle = "secret.file.single"
+	// pattern for secret file names
+	SecretFileNamePattern = "secret.file.name.pattern"
+	// pattern for a secret property prefix
 	SecretFilePropertyPattern = "secret.file.property.pattern"
 
+	// transformation function for (K8s secret) keys
 	SecretKeyTransformation = "secret.key.transformation"
 
 	SecretDeletionWatch = "secret.deletion.watch"
