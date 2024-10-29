@@ -16,8 +16,8 @@ import (
 
 // Name will return either the filename of a single file to contain the secret information
 // or the directory path, where all sub-files should be stored in.
-func Name(secret *corev1.Secret) string {
-	return templates.Resolve(viper.GetString(env.SecretFileNamePattern), secret)
+func Name(secret *corev1.Secret) (string, error) {
+	return templates.Render(viper.GetString(env.SecretFileNamePattern), secret)
 }
 
 // ReadAll returns the secret contents of all existing files for the secret.

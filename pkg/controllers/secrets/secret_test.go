@@ -28,27 +28,32 @@ func TestReadSecretContent_wholeContent(t *testing.T) {
 	}
 
 	// attach on root level
-	result := readSecretContent(secret)
+	result, err := readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"key1": "value1", "key2": "value2"}))
 
 	// with key transformation
 	viper.Set(env.SecretKeyTransformation, "ToCamel")
-	result = readSecretContent(secret)
+	result, err = readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"Key1": "value1", "Key2": "value2"}))
 
 	// with simple property path
 	viper.Set(env.SecretFilePropertyPattern, "foo")
-	result = readSecretContent(secret)
+	result, err = readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"foo": map[interface{}]interface{}{"Key1": "value1", "Key2": "value2"}}))
 
 	// with templated property path
 	viper.Set(env.SecretFilePropertyPattern, "{{.ObjectMeta.Labels.foo}}")
-	result = readSecretContent(secret)
+	result, err = readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"bar": map[interface{}]interface{}{"Key1": "value1", "Key2": "value2"}}))
 
 	// and now again without key transformation
 	viper.Set(env.SecretKeyTransformation, "")
-	result = readSecretContent(secret)
+	result, err = readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"bar": map[interface{}]interface{}{"key1": "value1", "key2": "value2"}}))
 }
 
@@ -71,21 +76,25 @@ func TestReadSecretContent_singleSelect(t *testing.T) {
 	viper.Set(env.SecretContentSelector, "{{.Data.key1}}")
 
 	// attach on root level
-	result := readSecretContent(secret)
+	result, err := readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"key1": "value1"}))
 
 	// with key transformation
 	viper.Set(env.SecretKeyTransformation, "ToCamel")
-	result = readSecretContent(secret)
+	result, err = readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"Key1": "value1"}))
 
 	// with simple property path
 	viper.Set(env.SecretFilePropertyPattern, "foo")
-	result = readSecretContent(secret)
+	result, err = readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"foo": "value1"}))
 
 	// with templated property path
 	viper.Set(env.SecretFilePropertyPattern, "{{.ObjectMeta.Labels.foo}}")
-	result = readSecretContent(secret)
+	result, err = readSecretContent(secret)
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(result).To(gomega.Equal(map[interface{}]interface{}{"bar": "value1"}))
 }

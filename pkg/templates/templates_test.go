@@ -8,7 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestResolve(t *testing.T) {
+func TestRender(t *testing.T) {
 	g := NewGomegaWithT(t)
 
 	secret := corev1.Secret{
@@ -28,22 +28,53 @@ func TestResolve(t *testing.T) {
 		},
 	}
 
-	// empty string
-	g.Expect(Resolve("", &secret)).To(BeEmpty())
-	// no pattern
-	g.Expect(Resolve("samba-dance", &secret)).To(Equal("samba-dance"))
-	// name in pattern
-	g.Expect(Resolve("{{.ObjectMeta.Name}}", &secret)).To(Equal("my-super-secret-foo-bar"))
-	// label in pattern
-	g.Expect(Resolve("{{.ObjectMeta.Labels.label1}}", &secret)).To(Equal("labelValue1"))
-	// annotation in pattern
-	g.Expect(Resolve("{{.ObjectMeta.Annotations.annotation1}}", &secret)).To(Equal("annotationValue1"))
-	// secret value in pattern
-	g.Expect(Resolve("{{.Data.key1}}", &secret)).To(Equal("value1"))
+	// Empty string.
+	res, err := Render("", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(BeEmpty())
 
-	// combination with other strings
-	g.Expect(Resolve("{{.Data.key1}}-{{.Data.key2}}", &secret)).To(Equal("value1-value2"))
+	// Invalid pattern.
+	res, err = Render("{{ .Data.key1 }", &secret)
+	g.Expect(err).To(MatchError("parsing template \"{{ .StringData.key1 }\" failed: template: :1: unexpected \"}\" in operand"))
+	g.Expect(res).To(BeEmpty())
 
-	// some elaborate pattern
-	g.Expect(Resolve("my-{{with $arr := splitN .ObjectMeta.Name \"-\" 3}}{{index $arr 2}}{{end}}-stuff", &secret)).To(Equal("my-secret-foo-bar-stuff"))
+	// Missing value in pattern.
+	res, err = Render("{{ .Missing }}", &secret)
+	g.Expect(err).To(MatchError("executing template \"{{ .Missing }}\" with secret some-namespace/my-super-secret-foo-bar failed: template: :1:3: executing \"\" at <.Missing>: can't evaluate field Missing in type *v1.Secret"))
+	g.Expect(res).To(BeEmpty())
+
+	// No pattern.
+	res, err = Render("samba-dance", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(Equal("samba-dance"))
+
+	// Name in pattern.
+	res, err = Render("{{ .ObjectMeta.Name }}", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(Equal("my-super-secret-foo-bar"))
+
+	// Label in pattern.
+	res, err = Render("{{ .ObjectMeta.Labels.label1 }}", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(Equal("labelValue1"))
+
+	// Annotation in pattern.
+	res, err = Render("{{ .ObjectMeta.Annotations.annotation1 }}", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(Equal("annotationValue1"))
+
+	// Secret value in pattern.
+	res, err = Render("{{ .Data.key1 }}", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(Equal("value1"))
+
+	// Combination with other strings.
+	res, err = Render("{{ .Data.key1 }}-{{ .Data.key2 }}", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(Equal("value1-value2"))
+
+	// Some elaborate pattern.
+	res, err = Render("my-{{ with $arr := splitN .ObjectMeta.Name \"-\" 3 }}{{ index $arr 2 }}{{ end }}-stuff", &secret)
+	g.Expect(err).To(BeNil())
+	g.Expect(res).To(Equal("my-secret-foo-bar-stuff"))
 }

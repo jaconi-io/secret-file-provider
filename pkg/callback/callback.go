@@ -30,7 +30,11 @@ func Call(secret *corev1.Secret) (bool, error) {
 	var bodyReader io.Reader
 	switch method {
 	case http.MethodPatch, http.MethodPost, http.MethodPut:
-		bodyReader = body(secret)
+		var err error
+		bodyReader, err = body(secret)
+		if err != nil {
+			return false, err
+		}
 	case http.MethodDelete, http.MethodGet, http.MethodHead:
 		bodyReader = nil
 	default:
@@ -61,10 +65,16 @@ func Call(secret *corev1.Secret) (bool, error) {
 	return false, nil
 }
 
-func body(secret *corev1.Secret) io.Reader {
+func body(secret *corev1.Secret) (io.Reader, error) {
 	body := viper.GetString(env.CallbackBody)
 	if body == "" {
-		return strings.NewReader("")
+		return strings.NewReader(""), nil
 	}
-	return strings.NewReader(templates.Resolve(body, secret))
+
+	renderedBody, err := templates.Render(body, secret)
+	if err != nil {
+		return strings.NewReader(""), err
+	}
+
+	return strings.NewReader(renderedBody), nil
 }
