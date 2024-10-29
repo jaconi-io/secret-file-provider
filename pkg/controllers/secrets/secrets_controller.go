@@ -104,13 +104,10 @@ func remove(secret *corev1.Secret) error {
 	// 2. read content from secret
 	newContent := readSecretContent(secret)
 
-	// 3. convert keys if necessary
-	convertedKeyMap := maps.TransformKeys(newContent, viper.GetString(env.SecretKeyTransformation))
+	// 3. drop new entries from existing map
+	resultingMap := maps.Drop(existingContent, newContent)
 
-	// 4. drop new entries from existing map
-	resultingMap := maps.Drop(existingContent, convertedKeyMap)
-
-	// 5. write to file
+	// 4. write to file
 	return file.WriteAll(log, f, resultingMap)
 }
 
@@ -127,12 +124,9 @@ func add(secret *corev1.Secret) error {
 	// 2. read content from secret
 	newContent := readSecretContent(secret)
 
-	// 3. convert keys if necessary
-	convertedKeyMap := maps.TransformKeys(newContent, viper.GetString(env.SecretKeyTransformation))
+	// 3. merge maps
+	resultingMap := maps.Union(existingContent, newContent)
 
-	// 4. merge maps
-	resultingMap := maps.Union(existingContent, convertedKeyMap)
-
-	// 5. write to file
+	// 4. write to file
 	return file.WriteAll(log, f, resultingMap)
 }

@@ -1,22 +1,5 @@
 package maps
 
-import (
-	"fmt"
-	"log/slog"
-	"os"
-
-	"github.com/iancoleman/strcase"
-)
-
-var KeyTransformFunctions = map[string]func(string) string{
-	"ToCamel":          ToCamel,
-	"ToLowerCamel":     ToLowerCamel,
-	"ToKebab":          strcase.ToKebab,
-	"ToScreamingKebab": strcase.ToScreamingKebab,
-	"ToSnake":          strcase.ToSnake,
-	"ToScreamingSnake": strcase.ToScreamingSnake,
-}
-
 // Union will merge two given maps recursive, where the values of the 'right' one will overwrite the ones
 // from the 'left'.
 func Union(left, right map[interface{}]interface{}) map[interface{}]interface{} {
@@ -75,33 +58,6 @@ func Copy(origin map[interface{}]interface{}) map[interface{}]interface{} {
 	out := make(map[interface{}]interface{}, len(origin))
 	for k, v := range origin {
 		out[k] = v
-	}
-	return out
-}
-
-// TransformKeys will transform all keys in the given map recursively with the given transform function,
-// which must exist in the 'KeyTransformFunctions' map.
-func TransformKeys(origin map[interface{}]interface{}, transform string) map[interface{}]interface{} {
-	if transform == "" {
-		return origin
-	}
-	if function, ok := KeyTransformFunctions[transform]; ok {
-		return transformKeysInt(origin, function)
-	}
-	slog.Error("illegal transform function", "function", transform)
-	os.Exit(1)
-	return nil
-}
-
-func transformKeysInt(origin map[interface{}]interface{}, transform func(string) string) map[interface{}]interface{} {
-	out := make(map[interface{}]interface{}, len(origin))
-	for k, v := range origin {
-		strKey := fmt.Sprintf("%v", k)
-		if vmap, ok := v.(map[interface{}]interface{}); ok {
-			out[transform(strKey)] = transformKeysInt(vmap, transform)
-		} else {
-			out[transform(strKey)] = v
-		}
 	}
 	return out
 }

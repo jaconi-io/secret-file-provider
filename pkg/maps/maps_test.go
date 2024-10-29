@@ -111,11 +111,3 @@ func TestUnion(t *testing.T) {
 
 	g.Expect(result).To(Equal(expectedResult))
 }
-
-func TestToCamel(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	g.Expect(ToCamel("UhH_OHH")).To(Equal("UhhOhh"))
-	g.Expect(ToCamel("UHH-OHH")).To(Equal("UhhOhh"))
-	g.Expect(ToCamel("UHH-ohh")).To(Equal("UhhOhh"))
-}
