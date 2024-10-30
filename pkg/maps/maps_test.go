@@ -24,6 +24,7 @@ func TestDrop(t *testing.T) {
 			"key21": "value21",
 		},
 		"key3": "value3",
+		"key4": "value4",
 	}
 	toDrop := map[interface{}]interface{}{
 		"key1": map[interface{}]interface{}{
@@ -34,6 +35,8 @@ func TestDrop(t *testing.T) {
 			},
 		},
 		"key2": "value2",
+		"key4": map[interface{}]interface{}{},
+		"key5": "value5",
 	}
 
 	expectedResult := map[interface{}]interface{}{

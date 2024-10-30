@@ -1,12 +1,16 @@
 package maps
 
+import (
+	gomaps "maps"
+)
+
 // Union will merge two given maps recursive, where the values of the 'right' one will overwrite the ones
 // from the 'left'.
 func Union(left, right map[interface{}]interface{}) map[interface{}]interface{} {
-	out := Copy(left)
+	out := gomaps.Clone(left)
 	for k, v := range right {
-		// If you use map[string]interface{}, ok is always false here.
-		// Because yaml.Unmarshal will give you map[interface{}]interface{}.
+		// If you use map[string]interface{}, ok is always false here, because [yaml.Unmarshal] returns
+		// map[interface{}]interface{}.
 		if v, ok := v.(map[interface{}]interface{}); ok {
 			if bv, ok := out[k]; ok {
 				if bv, ok := bv.(map[interface{}]interface{}); ok {
@@ -22,8 +26,7 @@ func Union(left, right map[interface{}]interface{}) map[interface{}]interface{} 
 
 // Drop will remove known entries from a given map recursively.
 func Drop(origin, toRemove map[interface{}]interface{}) map[interface{}]interface{} {
-
-	out := Copy(origin)
+	out := gomaps.Clone(origin)
 	for k, v := range toRemove {
 		if _, ok := out[k]; !ok {
 			// not existing, don't need to care
@@ -50,14 +53,6 @@ func Drop(origin, toRemove map[interface{}]interface{}) map[interface{}]interfac
 	}
 	if len(out) < 1 {
 		return nil
-	}
-	return out
-}
-
-func Copy(origin map[interface{}]interface{}) map[interface{}]interface{} {
-	out := make(map[interface{}]interface{}, len(origin))
-	for k, v := range origin {
-		out[k] = v
 	}
 	return out
 }
