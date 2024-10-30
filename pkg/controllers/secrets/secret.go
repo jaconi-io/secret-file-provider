@@ -32,26 +32,29 @@ import (
 //	    }
 //	  }
 //	}
-func readSecretContent(secret *corev1.Secret) map[interface{}]interface{} {
+func readSecretContent(secret *corev1.Secret) (map[interface{}]interface{}, error) {
 	propertyPattern := viper.GetString(env.SecretFilePropertyPattern)
 
-	mapContent, stringContent := extractContent(secret)
+	mapContent, stringContent, err := extractContent(secret)
+	if err != nil {
+		return map[interface{}]interface{}{}, err
+	}
 
 	// if no additional properties: put content into plain map
 	if len(propertyPattern) < 1 {
 		if stringContent == "" {
 			// no nesting required, no plain content -> we are done at this point and
 			// can return the already read in map
-			return mapContent
+			return mapContent, nil
 		}
-		return processSingleElement(stringContent)
+		return processSingleElement(stringContent), nil
 	}
 
 	return nestAdditionalProperties(secret, mapContent, stringContent)
 }
 
 // extractContent stores content information either as map or as plain string, depending on selector
-func extractContent(secret *corev1.Secret) (map[interface{}]interface{}, string) {
+func extractContent(secret *corev1.Secret) (map[interface{}]interface{}, string, error) {
 	selectorTemplate := viper.GetString(env.SecretContentSelector)
 
 	mapContent := make(map[interface{}]interface{})
@@ -70,10 +73,14 @@ func extractContent(secret *corev1.Secret) (map[interface{}]interface{}, string)
 			mapContent[transform(k)] = string(v)
 		}
 	} else {
-		// resolve template to string; do not put into map, as this is intended to be a plain string
-		stringContent = templates.Resolve(selectorTemplate, secret)
+		// Render template to string; do not put into map, as this is intended to be a plain string
+		var err error
+		stringContent, err = templates.Render(selectorTemplate, secret)
+		if err != nil {
+			return mapContent, stringContent, err
+		}
 	}
-	return mapContent, stringContent
+	return mapContent, stringContent, nil
 }
 
 // processSingleElement creates a map containing only the given string value as value and the last
@@ -102,9 +109,12 @@ func processSingleElement(stringContent string) map[interface{}]interface{} {
 
 // nestAdditionalProperties will attach either the given map- or string-content to a mandatory property pattern
 // prefix, gotten via [env.SecretFilePropertyPattern].
-func nestAdditionalProperties(secret *corev1.Secret, mapContent map[interface{}]interface{}, stringContent string) map[interface{}]interface{} {
+func nestAdditionalProperties(secret *corev1.Secret, mapContent map[interface{}]interface{}, stringContent string) (map[interface{}]interface{}, error) {
 	propertyPattern := viper.GetString(env.SecretFilePropertyPattern)
-	propertyPath := templates.Resolve(propertyPattern, secret)
+	propertyPath, err := templates.Render(propertyPattern, secret)
+	if err != nil {
+		return map[interface{}]interface{}{}, err
+	}
 
 	result := make(map[interface{}]interface{})
 	current := result
@@ -126,7 +136,7 @@ func nestAdditionalProperties(secret *corev1.Secret, mapContent map[interface{}]
 			}
 		}
 	}
-	return result
+	return result, nil
 }
 
 func transform(key string) string {

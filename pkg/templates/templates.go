@@ -2,53 +2,51 @@ package templates
 
 import (
 	"bytes"
-	"log/slog"
-	"os"
+	"fmt"
 	"strings"
 	"text/template"
 
 	corev1 "k8s.io/api/core/v1"
 )
 
-// Resolve resolves a given go template pattern with the content of the given secret.
-func Resolve(pattern string, secret *corev1.Secret) string {
+// TODO: Do we want to support additional functions?
+var funcMap = template.FuncMap{
+	"split":  strings.Split,
+	"splitN": strings.SplitN,
+}
 
+// Render a given Go template with the content of the given Kubernetes secret.
+func Render(pattern string, secret *corev1.Secret) (string, error) {
 	if !strings.Contains(pattern, "{{") {
-		// no template involved, return as is
-		return pattern
+		// Not a Go template. Return as is.
+		return pattern, nil
 	}
 
-	// Handle special '.Data' case for secrets, where content is stored in binary format
-	patternToApply := pattern
+	// Copy binary '.Data' to '.StringData'.
 	if strings.Contains(pattern, ".Data") {
-		// copy binary .Data secrets to .StringData secrets
 		if secret.StringData == nil {
 			secret.StringData = map[string]string{}
 		}
+
 		for k, v := range secret.Data {
 			secret.StringData[k] = string(v)
 		}
-		// replace accessor in pattern
-		patternToApply = strings.Replace(patternToApply, ".Data", ".StringData", -1)
+
+		// Replace occurrences in pattern.
+		pattern = strings.Replace(pattern, ".Data", ".StringData", -1)
 	}
 
-	// TODO do we want to support extra functions?
-	funcMap := template.FuncMap{
-		"split":  strings.Split,
-		"splitN": strings.SplitN,
-	}
-	// see https://pkg.go.dev/text/template
-	tmpl, err := template.New("test").Funcs(funcMap).Parse(patternToApply)
+	// See https://pkg.go.dev/text/template
+	tmpl, err := template.New("").Funcs(funcMap).Parse(pattern)
 	if err != nil {
-		slog.Error("failed to parse template", "template", pattern, "error", err)
-		os.Exit(1)
+		return "", fmt.Errorf("parsing template %q failed: %w", pattern, err)
 	}
 
 	buf := new(bytes.Buffer)
 	err = tmpl.Execute(buf, secret)
 	if err != nil {
-		slog.Error("failed to execute template", "namespace", secret.Namespace, "name", secret.Name, "error", err)
-		return ""
+		return "", fmt.Errorf("executing template %q with secret %s/%s failed: %w", pattern, secret.Namespace, secret.Name, err)
 	}
-	return string(buf.Bytes())
+
+	return buf.String(), nil
 }

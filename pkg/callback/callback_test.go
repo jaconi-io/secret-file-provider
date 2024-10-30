@@ -114,6 +114,35 @@ func TestCallPostEmptyBody(t *testing.T) {
 	g.Expect(err).To(BeNil())
 }
 
+func TestCallPostInvalidBody(t *testing.T) {
+	g := NewGomegaWithT(t)
+	defer viper.Reset()
+
+	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/callback" {
+			g.Expect(req.ContentLength).To(BeNumerically(">", 0))
+			bytes := make([]byte, req.ContentLength)
+			req.Body.Read(bytes)
+			g.Expect(string(bytes)).To(Equal(`{"updated":"foo"}`))
+		}
+	}))
+	defer server.Close()
+
+	// The body template is tested within the server implementation!
+	viper.Set(env.CallbackBody, `{"updated":"{{.ObjectMeta.Name}"}`)
+	viper.Set(env.CallbackMethod, http.MethodPost)
+	viper.Set(env.CallbackURL, server.URL+"/callback")
+
+	retry, err := Call(&corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+		},
+	})
+
+	g.Expect(retry).To(BeFalse())
+	g.Expect(err).To(MatchError("parsing template \"{\\\"updated\\\":\\\"{{.ObjectMeta.Name}\\\"}\" failed: template: :1: bad character U+007D '}'"))
+}
+
 func TestCallPost(t *testing.T) {
 	g := NewGomegaWithT(t)
 	defer viper.Reset()

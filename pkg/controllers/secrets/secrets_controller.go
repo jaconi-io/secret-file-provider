@@ -98,11 +98,17 @@ func remove(secret *corev1.Secret) error {
 	log.Debug("Removing content for secret")
 
 	// 1. read existing file content
-	f := file.Name(secret)
+	f, err := file.Name(secret)
+	if err != nil {
+		return err
+	}
 	existingContent := file.ReadAll(log, f)
 
 	// 2. read content from secret
-	newContent := readSecretContent(secret)
+	newContent, err := readSecretContent(secret)
+	if err != nil {
+		return err
+	}
 
 	// 3. drop new entries from existing map
 	resultingMap := maps.Drop(existingContent, newContent)
@@ -118,11 +124,17 @@ func add(secret *corev1.Secret) error {
 	log.Debug("Adding content for secret")
 
 	// 1. read existing file content
-	f := file.Name(secret)
+	f, err := file.Name(secret)
+	if err != nil {
+		return err
+	}
 	existingContent := file.ReadAll(log, f)
 
 	// 2. read content from secret
-	newContent := readSecretContent(secret)
+	newContent, err := readSecretContent(secret)
+	if err != nil {
+		return err
+	}
 
 	// 3. merge maps
 	resultingMap := maps.Union(existingContent, newContent)
