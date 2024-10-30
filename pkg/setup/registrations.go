@@ -1,122 +1,132 @@
 package setup
 
 import (
-	"fmt"
+	"errors"
 	"log/slog"
-	"os"
 	"regexp"
 	"strings"
 
 	"github.com/jaconi-io/secret-file-provider/pkg/controllers/secrets"
 	"github.com/jaconi-io/secret-file-provider/pkg/env"
+
 	"github.com/spf13/viper"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-func RegisterControllers(mgr manager.Manager) {
-	slog.Info("register reconcilers...")
-	if err := ctrl.NewControllerManagedBy(mgr).
+func RegisterControllers(mgr manager.Manager) error {
+	filter, err := createFilter()
+	if err != nil {
+		return err
+	}
+
+	slog.Info("registering secret controller")
+	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Secret{}).
-		WithEventFilter(createFilter()).
-		Complete(&secrets.Reconciler{Client: mgr.GetClient()}); err != nil {
-		slog.Error("could not create controller", "error", err)
-	}
+		WithEventFilter(filter).
+		Complete(&secrets.Reconciler{Client: mgr.GetClient()})
 }
 
-// createFilter creates secret read filters based on either name-/namespace- or label-selector.
-func createFilter() predicate.Predicate {
+// createFilter creates secret read filters based on either name / namespace or label selector.
+func createFilter() (predicate.Predicate, error) {
 	labelSelector := viper.GetString(env.SecretLabelSelector)
-	if len(labelSelector) > 0 {
-		return createSecretSelectFilter(labelSelector)
-	}
 	nameSelector := viper.GetString(env.SecretNameSelector)
-	if len(nameSelector) > 0 {
-		return createNameSelector(nameSelector)
+	namespaceSelector := strings.Split(viper.GetString(env.SecretNamespaceSelector), ",")
+
+	if labelSelector != "" && nameSelector != "" {
+		return nil, errors.New("name and label selector are set")
 	}
-	slog.Error("no secret selector set")
-	os.Exit(1)
-	return nil
-}
 
-// createNameSelector creates a predicate to check for dedicated name-pattern/namespace combinations
-// to reconcile on.
-func createNameSelector(regexString string) predicate.Predicate {
-
-	namespaces := make(map[string]struct{})
-	namespacesString := viper.GetString(env.SecretNamespaceSelector)
-	if namespacesString != "" {
-		for _, ns := range strings.Split(namespacesString, ",") {
-			namespaces[ns] = struct{}{}
+	if labelSelector != "" {
+		labelSelectorPredicate, err := matchByLabelSelector(labelSelector)
+		if err != nil {
+			return nil, err
 		}
+
+		namespacePredicate := matchByNamespace(namespaceSelector)
+
+		return predicate.And(matchRelevantEvents(), namespacePredicate, labelSelectorPredicate), nil
 	}
-	return createFunctionSelectFilter(namespaces, regexString)
+
+	if nameSelector != "" {
+		namePredicate, err := matchByName(nameSelector)
+		if err != nil {
+			return nil, err
+		}
+
+		namespacePredicate := matchByNamespace(namespaceSelector)
+
+		return predicate.And(matchRelevantEvents(), namePredicate, namespacePredicate), nil
+	}
+
+	return nil, errors.New("no secret selector set")
 }
 
-// createSecretSelectFilter creates a predicate to check K8s label selector matches for reconciles.
-func createSecretSelectFilter(selectFilter string) predicate.Predicate {
-
-	// TODO namespace!
-	// TODO use real k8s selector instead of object meta selector?
+// matchByLabelSelector returns a predicate matching objects by a Kubernetes label selector.
+func matchByLabelSelector(selectFilter string) (predicate.Predicate, error) {
 	selector, err := metav1.ParseToLabelSelector(selectFilter)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to parse given selector %s", selectFilter), "error", err)
-		os.Exit(1)
+		return nil, err
 	}
-	filter, err := predicate.LabelSelectorPredicate(*selector)
+
+	return predicate.LabelSelectorPredicate(*selector)
+}
+
+// matchByName returns a predicate matching objects name, using a regular expression.
+func matchByName(regexString string) (predicate.Predicate, error) {
+	regex, err := regexp.CompilePOSIX(regexString)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to convert selector %s", selectFilter), "error", err)
-		os.Exit(1)
+		return nil, err
 	}
-	return predicate.And(filter, createAllFunctionSelectFilter())
+
+	return predicate.NewPredicateFuncs(func(object client.Object) bool {
+		return regex.Match([]byte(object.GetName()))
+	}), nil
 }
 
-func createFunctionSelectFilter(namespaces map[string]struct{}, regexString string) predicate.Predicate {
-	regex := regexp.MustCompilePOSIX(regexString)
-	funcs := predicate.Funcs{
-		CreateFunc: func(ce event.CreateEvent) bool {
-			return namespaceMatch(namespaces, ce.Object.GetNamespace()) && regex.Match([]byte(ce.Object.GetName()))
-		},
-		UpdateFunc: func(ue event.UpdateEvent) bool {
-			return namespaceMatch(namespaces, ue.ObjectNew.GetNamespace()) && regex.Match([]byte(ue.ObjectNew.GetName()))
-		},
+// matchByNamespace returns a predicate matching an object by its namespace. If the list of namespaces is empty, match
+// all objects.
+func matchByNamespace(namespaces []string) predicate.Predicate {
+	if len(namespaces) == 0 {
+		return predicate.NewPredicateFuncs(func(object client.Object) bool {
+			return true
+		})
 	}
-	if viper.GetBool(env.SecretDeletionWatch) {
-		funcs.DeleteFunc = func(de event.DeleteEvent) bool {
-			return namespaceMatch(namespaces, de.Object.GetNamespace()) && regex.Match([]byte(de.Object.GetName()))
-		}
+
+	namespaceMap := map[string]struct{}{}
+	for _, namespace := range namespaces {
+		namespaceMap[namespace] = struct{}{}
 	}
-	return funcs
+
+	return predicate.NewPredicateFuncs(func(object client.Object) bool {
+		_, ok := namespaceMap[object.GetNamespace()]
+		return ok
+	})
 }
 
-func createAllFunctionSelectFilter() predicate.Predicate {
+// matchRelevantEvents returns a predicate matching all objects for the relevant events create, update, and (optionally)
+// delete.
+func matchRelevantEvents() predicate.Predicate {
 	funcs := predicate.Funcs{
 		CreateFunc: func(_ event.CreateEvent) bool {
 			return true
+		},
+		DeleteFunc: func(_ event.DeleteEvent) bool {
+			return viper.GetBool(env.SecretDeletionWatch)
+		},
+		GenericFunc: func(_ event.GenericEvent) bool {
+			return false
 		},
 		UpdateFunc: func(_ event.UpdateEvent) bool {
 			return true
 		},
 	}
-	if viper.GetBool(env.SecretDeletionWatch) {
-		funcs.DeleteFunc = func(_ event.DeleteEvent) bool {
-			return true
-		}
-	}
-	return funcs
-}
 
-func namespaceMatch(namespaces map[string]struct{}, namespace string) bool {
-	if len(namespaces) < 1 {
-		// match all
-		return true
-	}
-	if _, ok := namespaces[namespace]; ok {
-		return true
-	}
-	return false
+	return funcs
 }
