@@ -94,15 +94,21 @@ func change(secret *corev1.Secret, changeFunc func(*corev1.Secret) error) error 
 // remove will remove the files or file content, belonging to the given secret
 // Returns potential error
 func remove(secret *corev1.Secret) error {
-	log := logger.New(secret)
-	log.Debug("Removing content for secret")
+	logger.New(secret).Debug("Removing content for secret")
 
 	// 1. read existing file content
 	f, err := file.Name(secret)
 	if err != nil {
 		return err
 	}
-	existingContent := file.ReadAll(log, f)
+	existingContent, err := file.ReadAll(f)
+	if err != nil {
+		if os.IsNotExist(err) {
+			existingContent = map[interface{}]interface{}{}
+		} else {
+			return err
+		}
+	}
 
 	// 2. read content from secret
 	newContent, err := readSecretContent(secret)
@@ -114,21 +120,27 @@ func remove(secret *corev1.Secret) error {
 	resultingMap := maps.Drop(existingContent, newContent)
 
 	// 4. write to file
-	return file.WriteAll(log, f, resultingMap)
+	return file.WriteAll(f, resultingMap)
 }
 
 // add will create the files or file content, belonging to the given secret
 // Returns potential error
 func add(secret *corev1.Secret) error {
-	log := logger.New(secret)
-	log.Debug("Adding content for secret")
+	logger.New(secret).Debug("Adding content for secret")
 
 	// 1. read existing file content
 	f, err := file.Name(secret)
 	if err != nil {
 		return err
 	}
-	existingContent := file.ReadAll(log, f)
+	existingContent, err := file.ReadAll(f)
+	if err != nil {
+		if os.IsNotExist(err) {
+			existingContent = map[interface{}]interface{}{}
+		} else {
+			return err
+		}
+	}
 
 	// 2. read content from secret
 	newContent, err := readSecretContent(secret)
@@ -140,5 +152,5 @@ func add(secret *corev1.Secret) error {
 	resultingMap := maps.Union(existingContent, newContent)
 
 	// 4. write to file
-	return file.WriteAll(log, f, resultingMap)
+	return file.WriteAll(f, resultingMap)
 }
