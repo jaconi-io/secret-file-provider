@@ -2,7 +2,7 @@ module github.com/jaconi-io/secret-file-provider
 
 go 1.23.0
 
-toolchain go1.23.4
+toolchain go1.24.1
 
 require (
 	github.com/go-logr/logr v1.4.2
@@ -15,7 +15,7 @@ require (
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
 	k8s.io/client-go v0.32.3
-	sigs.k8s.io/controller-runtime v0.20.3
+	sigs.k8s.io/controller-runtime v0.20.4
 	sigs.k8s.io/e2e-framework v0.6.0
 )
 
