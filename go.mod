@@ -2,7 +2,7 @@ module github.com/jaconi-io/secret-file-provider
 
 go 1.23.0
 
-toolchain go1.23.4
+toolchain go1.24.1
 
 require (
 	github.com/go-logr/logr v1.4.2
@@ -10,7 +10,7 @@ require (
 	github.com/onsi/gomega v1.36.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
-	github.com/spf13/viper v1.20.0
+	github.com/spf13/viper v1.20.1
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
