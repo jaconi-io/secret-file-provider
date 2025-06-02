@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
-	github.com/go-logr/logr v1.4.2
+	github.com/go-logr/logr v1.4.3
 	github.com/iancoleman/strcase v0.3.0
 	github.com/onsi/gomega v1.37.0
 	github.com/spf13/cobra v1.9.1
