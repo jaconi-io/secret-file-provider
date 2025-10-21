@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
       - name: Lint commit message(s)
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: '20'
       - id: semantic-release
